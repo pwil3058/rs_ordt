@@ -5,3 +5,6 @@ authors = ["Peter Williams <pwil3058@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+# TODO: change ordered_collections dependency when it goes public
+#ordered_collections = { git = "https://github.com/pwil3058/rs_ordered_collections.git" }
+ordered_collections = { path = "../../CRATES/rs_ordered_collections.git" }
