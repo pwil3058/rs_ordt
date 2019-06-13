@@ -155,9 +155,7 @@ where
         } else {
             for j in query.iter() {
                 if let Some(rdt) = self.children.get(j) {
-                    if let Some(first) =
-                        (&(rdt.item_set() - self.item_set()) & query).first()
-                    {
+                    if let Some(first) = (&(rdt.item_set() - self.item_set()) & query).first() {
                         if first == j {
                             for m in rdt.partial_matches_after(query, j).drain() {
                                 matches.insert(m);
@@ -238,9 +236,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         } else {
             for j in query.iter_after(k) {
                 if let Some(rdt) = self.children.get(j) {
-                    if let Some(first) =
-                        (&(rdt.item_set() - self.item_set()) & query).first()
-                    {
+                    if let Some(first) = (&(rdt.item_set() - self.item_set()) & query).first() {
                         if first == j {
                             for m in rdt.partial_matches_after(query, j).drain() {
                                 matches.insert(m);
@@ -329,10 +325,8 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         assert!(excerpt.contains(key));
         let key_mop = self.children.remove(key).expect("invalid key in interpose");
         assert!(!key_mop.is_compatible_with(excerpt));
-        let mut new_key_mop = Self::new_epitome(
-            key_mop.item_set() & excerpt,
-            &key_mop.undif_strength,
-        );
+        let mut new_key_mop =
+            Self::new_epitome(key_mop.item_set() & excerpt, &key_mop.undif_strength);
         for (k, k_rdt) in key_mop.children.iter() {
             new_key_mop.children.insert(k.clone(), k_rdt.replicate());
         }
