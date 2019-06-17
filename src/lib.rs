@@ -21,7 +21,8 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use ordered_collections::{OrderedMap, OrderedSet};
-use ordered_collections::iterators::*;
+use ordered_collections::ordered_iterators::*;
+use ordered_collections::iter_ops::*;
 
 mod yardstick;
 
@@ -125,7 +126,7 @@ impl<'a, T: 'a + Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
             for i in child
                 .c_item_set
                 .difference(&self.c_item_set)
-                .osi_difference(self.children_v.borrow().keys())
+                .difference(self.children_v.borrow().keys())
             {
                 if let Some(rdt_i) = my_children.get(i) {
                     if rdt_i == child {
