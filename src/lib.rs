@@ -309,7 +309,22 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         }
     }
 
-    fn algorithm_6_10_fix_v_links(&self, big_u: &(Rc<Self>, Rc<Self>)) {
+    fn algorithm_6_10_fix_v_links(&self, mops: &(Rc<Self>, Rc<Self>)) {
+        if mops.1.elements.is_superset(&self.elements) {
+            for k in mops.1.elements.difference(&self.elements) {
+                if let Some(mop_k_v) = self.get_v_child(k) {
+                    if mop_k_v == mops.0 {
+                        self.children_v.borrow_mut().insert(k.clone(), Rc::clone(&mops.1));
+                    }
+                }
+            }
+        }
+        let mut big_a = mops.1.elements.map_intersection(&self.children_r.borrow()).to_set();
+        while let Some(j) = big_a.first() {
+            let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
+            j_mop.algorithm_6_10_fix_v_links(mops);
+            big_a = big_a - j_mop_indices;
+        }
     }
 
     fn algorithm_6_11_absorb(&self, excerpt: &OrderedSet<T>, new_trace: &mut Option<Rc<Self>>) {
