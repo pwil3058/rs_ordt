@@ -148,6 +148,15 @@ impl<'a, T: 'a + Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         }
     }
 
+    fn get_v_child(&self, key: &T) -> Option<Rc<Self>> {
+        let my_children = self.children_v.borrow();
+        if let Some(child) = my_children.get(key) {
+            Some(Rc::clone(child))
+        } else {
+            None
+        }
+    }
+
     // See Algorithm 6.8
     fn get_v_child_and_indices(&self, key: &T) -> Option<(Rc<Self>, OrderedSet<T>)> {
         let my_children = self.children_v.borrow();
@@ -287,6 +296,17 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
     }
 
     fn algorithm_6_9_fix_v_links(&self, big_u: &HashSet<(Rc<Self>, Rc<Self>)>) {
+        for (m1, m2) in big_u.iter() {
+            if m2.elements.is_superset(&self.elements) {
+                for k in m2.elements.difference(&self.elements) {
+                    if let Some(k_mop_v) = self.get_v_child(k) {
+                        if k_mop_v == *m1 {
+                            self.children_v.borrow_mut().insert(k.clone(), Rc::clone(m2));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn algorithm_6_10_fix_v_links(&self, big_u: &(Rc<Self>, Rc<Self>)) {
