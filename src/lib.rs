@@ -14,7 +14,7 @@
 
 extern crate ordered_collections;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -378,6 +378,37 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> RedundantDiscriminationTree<T, 
     }
 }
 
+// SIMPLE STRENGTH
+
+#[derive(Debug, Clone)]
+pub struct SimpleStrength {
+    value: Cell<f64>,
+}
+
+impl Strength for SimpleStrength {
+    fn new(incr_value: bool) -> Self {
+        let mut strength = Self { value: Cell::new(0.0) };
+        if incr_value {
+            strength.increase();
+        }
+        strength
+    }
+
+    fn value(&self) -> f64 {
+        self.value.get()
+    }
+
+    fn increase(&self) {
+        let old_value = self.value.get();
+        self.value.set(old_value + (1.0 - old_value) * 0.05);
+    }
+
+    fn decrease(&self) {
+        let old_value = self.value.get();
+        self.value.set(old_value * (1.0 - 0.05));
+    }
+}
+
 // Debug Helpers
 fn format_set<T: Ord + Debug>(set: &OrderedSet<T>) -> String {
     let v: Vec<&T> = set.iter().collect();
@@ -428,8 +459,15 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        let mut rdt = RedundantDiscriminationTree::<&str, SimpleStrength>::new();
+        let excerpt: OrderedSet<&str> = vec!["a", "b", "c", "d"].into();
+        println!("{:?}", rdt.complete_match(&excerpt));
+        assert!(rdt.complete_match(&excerpt).is_none());
+        rdt.include_excerpt(excerpt.clone());
+        assert!(rdt.complete_match(&excerpt).is_some());
     }
 }
