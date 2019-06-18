@@ -262,6 +262,28 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         base_mop: &Rc<Self>,
         big_u: &mut HashSet<(Rc<Self>, Rc<Self>)>,
     ) {
+        let mut big_a_v = excerpt.map_intersection(&self.children_v.borrow()).to_set();
+        while let Some(j) = big_a_v.first() {
+            let (j_mop_v, j_mop_v_indices) = self.get_v_child_and_indices(j).unwrap();
+            if excerpt.is_superset(&j_mop_v.elements) {
+                big_a_v = big_a_v - j_mop_v_indices;
+            } else {
+                self.algorithm_6_6_interpose(j, excerpt);
+                let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
+                j_mop.algorithm_6_9_fix_v_links(big_u);
+                base_mop.algorithm_6_10_fix_v_links(&(Rc::clone(&j_mop_v), Rc::clone(&j_mop)));
+                big_u.insert((Rc::clone(&j_mop_v), Rc::clone(&j_mop)));
+                big_a_v = big_a_v - j_mop_indices;
+                assert!(j_mop.verify_mop());
+            }
+        }
+        let mut big_a = excerpt.map_intersection(&self.children_r.borrow()).to_set();
+        while let Some(j) = big_a.first() {
+            let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
+            j_mop.algorithm_6_7_reorganize(excerpt, base_mop, big_u);
+            assert!(j_mop.verify_mop());
+            big_a = big_a - j_mop_indices;
+        }
     }
 
     fn algorithm_6_9_fix_v_links(&self, big_u: &HashSet<(Rc<Self>, Rc<Self>)>) {
