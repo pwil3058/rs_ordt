@@ -20,7 +20,7 @@ use ordered_collections::OrderedMap;
 use ordered_collections::OrderedSet;
 
 pub trait MopIfce<T: Ord + Clone> {
-    fn item_set(&self) -> &OrderedSet<T>;
+    fn elements(&self) -> &OrderedSet<T>;
 
     fn trace_strength(&self) -> f64;
     fn epitome_strength(&self) -> f64;
@@ -47,7 +47,7 @@ pub trait Strength: Copy {
 
 #[derive(Clone, Debug)]
 pub struct Mop<T: Ord + Clone + Hash, S: Strength> {
-    item_set: OrderedSet<T>,
+    elements: OrderedSet<T>,
     children: OrderedMap<T, Self>,
     trace_strength: S,
     epitome_strength: S,
@@ -56,7 +56,7 @@ pub struct Mop<T: Ord + Clone + Hash, S: Strength> {
 
 impl<T: Ord + Clone + Hash, S: Strength> PartialEq for Mop<T, S> {
     fn eq(&self, other: &Self) -> bool {
-        self.item_set() == other.item_set()
+        self.elements() == other.elements()
     }
 }
 
@@ -64,14 +64,14 @@ impl<T: Ord + Clone + Hash, S: Strength> Eq for Mop<T, S> {}
 
 impl<T: Ord + Clone + Hash, S: Strength> Hash for Mop<T, S> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.item_set().hash(state);
+        self.elements().hash(state);
     }
 }
 
 impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     fn tabula_rasa() -> Self {
         Self {
-            item_set: OrderedSet::<T>::new(),
+            elements: OrderedSet::<T>::new(),
             children: OrderedMap::<T, Self>::new(),
             trace_strength: S::new(false),
             epitome_strength: S::new(false),
@@ -81,8 +81,8 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
 }
 
 impl<T: Ord + Clone + Hash, S: Strength> MopIfce<T> for Mop<T, S> {
-    fn item_set(&self) -> &OrderedSet<T> {
-        &self.item_set
+    fn elements(&self) -> &OrderedSet<T> {
+        &self.elements
     }
 
     fn trace_strength(&self) -> f64 {
@@ -110,12 +110,12 @@ where
     // Algorithn 3.2
     fn complete_match(&self, query: &OrderedSet<T>) -> Option<&Self> {
         let mut p: &Self = self;
-        let mut set_j = query - self.item_set();
+        let mut set_j = query - self.elements();
         loop {
             if let Some(j) = set_j.first() {
                 if let Some(j_child) = p.children.get(j) {
                     p = j_child;
-                    set_j = &set_j - p.item_set();
+                    set_j = &set_j - p.elements();
                 } else {
                     return None;
                 }
@@ -130,7 +130,7 @@ where
     fn partial_matches_rv(&self, query: &OrderedSet<T>) -> HashSet<&Self> {
         let mut matches = HashSet::new();
         if query.is_map_disjoint(&self.children) {
-            if !self.item_set().is_disjoint(query) {
+            if !self.elements().is_disjoint(query) {
                 matches.insert(self);
             }
         } else {
@@ -149,13 +149,13 @@ where
     fn partial_matches(&self, query: &OrderedSet<T>) -> HashSet<&Self> {
         let mut matches = HashSet::new();
         if query.is_map_disjoint(&self.children) {
-            if !self.item_set().is_disjoint(query) {
+            if !self.elements().is_disjoint(query) {
                 matches.insert(self);
             }
         } else {
             for j in query.iter() {
                 if let Some(rdt) = self.children.get(j) {
-                    if let Some(first) = (&(rdt.item_set() - self.item_set()) & query).first() {
+                    if let Some(first) = (&(rdt.elements() - self.elements()) & query).first() {
                         if first == j {
                             for m in rdt.partial_matches_after(query, j).drain() {
                                 matches.insert(m);
@@ -175,7 +175,7 @@ where
             matches.insert(self);
         }
         for (j, rdt) in self.children.iter() {
-            if let Some(first) = (rdt.item_set() - self.item_set()).first() {
+            if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
                     for m in rdt.traces_after(j).drain() {
                         matches.insert(m);
@@ -193,7 +193,7 @@ where
             matches.insert(self);
         }
         for (j, rdt) in self.children.iter() {
-            if let Some(first) = (rdt.item_set() - self.item_set()).first() {
+            if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
                     for m in rdt.epitomes_after(j).drain() {
                         matches.insert(m);
@@ -206,9 +206,9 @@ where
 }
 
 impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
-    fn new_trace(item_set: OrderedSet<T>) -> Self {
+    fn new_trace(elements: OrderedSet<T>) -> Self {
         Self {
-            item_set: item_set,
+            elements: elements,
             children: OrderedMap::<T, Self>::new(),
             trace_strength: S::new(true),
             epitome_strength: S::new(false),
@@ -216,9 +216,9 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         }
     }
 
-    fn new_epitome(item_set: OrderedSet<T>, strength: &S) -> Self {
+    fn new_epitome(elements: OrderedSet<T>, strength: &S) -> Self {
         Self {
-            item_set: item_set,
+            elements: elements,
             children: OrderedMap::<T, Self>::new(),
             trace_strength: S::new(false),
             epitome_strength: strength.clone(),
@@ -230,13 +230,13 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     fn partial_matches_after(&self, query: &OrderedSet<T>, k: &T) -> HashSet<&Self> {
         let mut matches = HashSet::new();
         if query.is_map_disjoint(&self.children) {
-            if !self.item_set.is_disjoint(query) {
+            if !self.elements.is_disjoint(query) {
                 matches.insert(self);
             }
         } else {
             for j in query.iter_after(k) {
                 if let Some(rdt) = self.children.get(j) {
-                    if let Some(first) = (&(rdt.item_set() - self.item_set()) & query).first() {
+                    if let Some(first) = (&(rdt.elements() - self.elements()) & query).first() {
                         if first == j {
                             for m in rdt.partial_matches_after(query, j).drain() {
                                 matches.insert(m);
@@ -256,7 +256,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
             matches.insert(self);
         }
         for (j, rdt) in self.children.iter_after(k) {
-            if let Some(first) = (rdt.item_set() - self.item_set()).first() {
+            if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
                     for m in rdt.traces_after(j).drain() {
                         matches.insert(m);
@@ -274,7 +274,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
             matches.insert(self);
         }
         for (j, rdt) in self.children.iter_after(k) {
-            if let Some(first) = (rdt.item_set() - self.item_set()).first() {
+            if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
                     for m in rdt.traces_after(j).drain() {
                         matches.insert(m);
@@ -286,11 +286,11 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     }
 
     fn is_compatible_with(&self, excerpt: &OrderedSet<T>) -> bool {
-        self.item_set.is_subset(excerpt)
+        self.elements.is_subset(excerpt)
     }
 
     fn is_recursive_compatible_with(&self, excerpt: &OrderedSet<T>) -> bool {
-        if self.item_set().is_subset(excerpt) {
+        if self.elements().is_subset(excerpt) {
             for key in excerpt.iter() {
                 if let Some(rdt) = self.children.get(key) {
                     if !rdt.is_recursive_compatible_with(excerpt) {
@@ -307,7 +307,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     // Algorithm 4.2
     fn replicate(&self) -> Self {
         let mut replica = Self {
-            item_set: self.item_set().clone(),
+            elements: self.elements().clone(),
             children: OrderedMap::new(),
             trace_strength: self.trace_strength.clone(),
             epitome_strength: self.epitome_strength.clone(),
@@ -326,11 +326,11 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         let key_mop = self.children.remove(key).expect("invalid key in interpose");
         assert!(!key_mop.is_compatible_with(excerpt));
         let mut new_key_mop =
-            Self::new_epitome(key_mop.item_set() & excerpt, &key_mop.undif_strength);
+            Self::new_epitome(key_mop.elements() & excerpt, &key_mop.undif_strength);
         for (k, k_rdt) in key_mop.children.iter() {
             new_key_mop.children.insert(k.clone(), k_rdt.replicate());
         }
-        let mut k_iter = key_mop.item_set.difference(excerpt);
+        let mut k_iter = key_mop.elements.difference(excerpt);
         if let Some(first) = k_iter.next() {
             for k in k_iter {
                 new_key_mop.children.insert(k.clone(), key_mop.replicate());
@@ -344,9 +344,9 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     fn reorganize_for_compatability(&mut self, excerpt: &OrderedSet<T>) {
         assert!(self.is_compatible_with(excerpt));
         // clone() needed here to break mut borrow impasse
-        for j in excerpt.difference(&self.item_set().clone()) {
+        for j in excerpt.difference(&self.elements().clone()) {
             if let Some(j_rdt) = self.children.get(j) {
-                if !excerpt.is_superset(&j_rdt.item_set()) {
+                if !excerpt.is_superset(&j_rdt.elements()) {
                     self.interpose_for_compatability(j, excerpt);
                 }
             }
@@ -358,10 +358,10 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
 
     // Algorithm 4.5
     fn include_excerpt(&mut self, excerpt: &OrderedSet<T>) {
-        if excerpt == self.item_set() {
+        if excerpt == self.elements() {
             self.trace_strength.increase();
         } else {
-            let keys = excerpt - self.item_set();
+            let keys = excerpt - self.elements();
             for key in keys.iter() {
                 if let Some(rdt) = self.children.get_mut(key) {
                     rdt.include_excerpt(excerpt);
@@ -472,89 +472,71 @@ mod tests {
     #[test]
     fn it_works() {
         let mut rdt = YardstickRDT::<&str, SimpleStrength>::new();
-        let excerpt: OrderedSet<&str> = ["a", "b", "c", "d"].iter().collect();
+        let excerpt: OrderedSet<&str> = vec!["a", "b", "c", "d"].into();
         println!("{:?}", rdt.complete_match(&excerpt));
         assert!(rdt.complete_match(&excerpt).is_none());
         rdt.include_excerpt(excerpt.clone());
-        let cm = rdt.complete_match(&excerpt);
-        assert!(cm.is_some());
+        assert!(rdt.complete_match(&excerpt).is_some());
         rdt.include_experience(&["a", "b", "c"]);
         rdt.include_experience(&["a", "b", "d"]);
         rdt.include_experience(&["a", "d"]);
-        assert!(rdt
-            .complete_match(&["a", "b", "c"].iter().collect())
-            .is_some());
-        assert!(rdt
-            .complete_match(&["a", "b", "d"].iter().collect())
-            .is_some());
-        assert!(rdt.complete_match(&["a", "d"].iter().collect()).is_some());
-        assert!(rdt.complete_match(&["a", "b"].iter().collect()).is_some());
-        assert!(rdt.complete_match(&["d", "b"].iter().collect()).is_some());
+        assert!(rdt.complete_match(&vec!["a", "b", "c"].into()).is_some());
+        assert!(rdt.complete_match(&vec!["a", "b", "d"].into()).is_some());
+        assert!(rdt.complete_match(&vec!["a", "d"].into()).is_some());
+        assert!(rdt.complete_match(&vec!["a", "b"].into()).is_some());
+        assert!(rdt.complete_match(&vec!["d", "b"].into()).is_some());
 
-        assert!(
-            rdt.complete_match(&["a", "b", "c"].iter().collect())
+        assert_eq!(
+            rdt.complete_match(&vec!["a", "b", "c"].into())
                 .unwrap()
-                .item_set()
-                .len()
-                == 3
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b", "c"])
         );
-        assert!(
-            rdt.complete_match(&["a", "b", "d"].iter().collect())
+        assert_eq!(
+            rdt.complete_match(&vec!["a", "b", "d"].into())
                 .unwrap()
-                .item_set()
-                .len()
-                == 3
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b", "d"])
         );
-        assert!(
-            rdt.complete_match(&["a", "d"].iter().collect())
+        assert_eq!(
+            rdt.complete_match(&vec!["a", "d"].into())
                 .unwrap()
-                .item_set()
-                .len()
-                == 2
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "d"])
         );
-        assert!(
-            rdt.complete_match(&["a", "b"].iter().collect())
+        assert_eq!(
+            rdt.complete_match(&vec!["a", "b"].into())
                 .unwrap()
-                .item_set()
-                .len()
-                == 2
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b"])
         );
-        assert!(
-            rdt.complete_match(&["d", "b"].iter().collect())
+        assert_eq!(
+            rdt.complete_match(&vec!["d", "b"].into())
                 .unwrap()
-                .item_set()
-                .len()
-                == 3
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b", "d"])
         );
-        assert!(
-            rdt.complete_match(&["d", "b", "a", "c"].iter().collect())
+        assert_eq!(
+            rdt.complete_match(&vec!["d", "b", "a", "c"].into())
                 .unwrap()
-                .item_set()
-                .len()
-                == 4
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b", "c", "d"])
         );
 
         assert_eq!(rdt.traces().len(), 4);
         assert_eq!(rdt.epitomes().len(), 6);
 
-        rdt.include_experience(&["e", "b", "d"]);
-        assert!(rdt.complete_match(&["a", "e"].iter().collect()).is_none());
+        rdt.include_experience(&vec!["e", "b", "d"]);
+        assert!(rdt.complete_match(&vec!["a", "e"].into()).is_none());
         assert!(
-            rdt.complete_match(&["d", "b", "e"].iter().collect())
+            rdt.complete_match(&vec!["d", "b", "e"].into())
                 .unwrap()
-                .item_set()
+                .elements()
                 .len()
                 == 3
         );
-        assert_eq!(
-            rdt.partial_matches_rv(&["a", "d", "e"].iter().collect())
-                .len(),
-            2
-        );
-        assert_eq!(
-            rdt.partial_matches(&["a", "d", "e"].iter().collect()).len(),
-            2
-        );
+        assert_eq!(rdt.partial_matches_rv(&vec!["a", "d", "e"].into()).len(), 2);
+        assert_eq!(rdt.partial_matches(&vec!["a", "d", "e"].into()).len(), 2);
 
         assert_eq!(rdt.traces().len(), 5);
         assert_eq!(rdt.epitomes().len(), 9);

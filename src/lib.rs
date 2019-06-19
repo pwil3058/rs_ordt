@@ -20,10 +20,11 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use ordered_collections::{OrderedMap, OrderedSet};
-use ordered_collections::ordered_iterators::*;
 use ordered_collections::iter_ops::*;
+use ordered_collections::ordered_iterators::*;
+use ordered_collections::{OrderedMap, OrderedSet};
 
+#[cfg(test)]
 mod yardstick;
 
 pub trait Strength: Clone {
@@ -54,6 +55,28 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Eq for Mop<T, S> {}
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Hash for Mop<T, S> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.elements.hash(state);
+    }
+}
+
+impl<T: Ord + Clone + Hash + Debug, S: Strength> Mop<T, S> {
+    pub fn elements(&self) -> &OrderedSet<T> {
+        &self.elements
+    }
+
+    pub fn trace_strength(&self) -> f64 {
+        self.trace_strength.value()
+    }
+
+    pub fn epitome_strength(&self) -> f64 {
+        self.epitome_strength.value()
+    }
+
+    pub fn is_trace(&self) -> bool {
+        self.trace_strength.value() > 0.0
+    }
+
+    pub fn is_epitome(&self) -> bool {
+        self.children_r.borrow().len() > 0 || self.children_v.borrow().len() > 0
     }
 }
 
@@ -179,13 +202,32 @@ impl<'a, T: 'a + Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         }
     }
 
-    fn merge_children(&self) -> RefCell<OrderedMap<T, Rc<Self>>> {
-        let mut map = self
+    fn merged_children(&self) -> RefCell<OrderedMap<T, Rc<Self>>> {
+        let map = self
             .children_r
             .borrow()
             .merge(&self.children_v.borrow())
             .to_map();
         RefCell::new(map)
+    }
+
+    fn is_recursive_compatible_with(&self, excerpt: &OrderedSet<T>) -> bool {
+        if self.elements().is_subset(excerpt) {
+            for key in excerpt.iter() {
+                if let Some(mop) = self.get_r_child(key) {
+                    if !mop.is_recursive_compatible_with(excerpt) {
+                        return false;
+                    }
+                } else if let Some(mop) = self.get_v_child(key) {
+                    if !mop.is_recursive_compatible_with(excerpt) {
+                        return false;
+                    }
+                }
+            }
+        } else {
+            return false;
+        }
+        true
     }
 }
 
@@ -195,12 +237,12 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
         let m = Self::new_epitome(
             j_mop.elements.intersection(excerpt).to_set(),
-            j_mop.merge_children(),
+            j_mop.merged_children(),
             &j_mop.undif_strength,
         );
         m.insert_r_child(j_mop.elements.difference(&m.elements), &j_mop);
         assert!(m.verify_mop());
-        self.insert_r_child(m.elements.difference(&self.elements), &m);
+        self.insert_r_child(j_mop_indices.iter(), &m);
         assert!(self.verify_mop());
     }
 
@@ -208,7 +250,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
         let m = Self::new_epitome(
             j_mop.elements.intersection(excerpt).to_set(),
-            j_mop.merge_children(),
+            j_mop.merged_children(),
             &j_mop.undif_strength,
         );
         m.insert_v_child(j_mop.elements.difference(&m.elements), &j_mop);
@@ -217,7 +259,8 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         assert!(self.verify_mop());
     }
 
-    fn algorithm_6_4_reorganize(&self,
+    fn algorithm_6_4_reorganize(
+        &self,
         excerpt: &OrderedSet<T>,
         base_mop: &Rc<Self>,
         big_u: &mut HashSet<(Rc<Self>, Rc<Self>)>,
@@ -255,7 +298,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         let (j_mop, j_mop_indices) = self.get_v_child_and_indices(j).unwrap();
         let m = Self::new_epitome(
             j_mop.elements.intersection(excerpt).to_set(),
-            j_mop.merge_children(),
+            j_mop.merged_children(),
             &j_mop.undif_strength,
         );
         m.insert_v_child(j_mop.elements.difference(&m.elements), &j_mop);
@@ -301,7 +344,9 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
                 for k in m2.elements.difference(&self.elements) {
                     if let Some(k_mop_v) = self.get_v_child(k) {
                         if k_mop_v == *m1 {
-                            self.children_v.borrow_mut().insert(k.clone(), Rc::clone(m2));
+                            self.children_v
+                                .borrow_mut()
+                                .insert(k.clone(), Rc::clone(m2));
                         }
                     }
                 }
@@ -314,20 +359,23 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
             for k in mops.1.elements.difference(&self.elements) {
                 if let Some(mop_k_v) = self.get_v_child(k) {
                     if mop_k_v == mops.0 {
-                        self.children_v.borrow_mut().insert(k.clone(), Rc::clone(&mops.1));
+                        self.children_v
+                            .borrow_mut()
+                            .insert(k.clone(), Rc::clone(&mops.1));
                     }
                 }
             }
         }
-        let mut big_a = mops.1.elements.map_intersection(&self.children_r.borrow()).to_set();
+        let mut big_a = mops
+            .1
+            .elements
+            .map_intersection(&self.children_r.borrow())
+            .to_set();
         while let Some(j) = big_a.first() {
             let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
             j_mop.algorithm_6_10_fix_v_links(mops);
             big_a = big_a - j_mop_indices;
         }
-    }
-
-    fn algorithm_6_11_absorb(&self, excerpt: &OrderedSet<T>, new_trace: &mut Option<Rc<Self>>) {
     }
 
     fn algorithm_6_12_decr_strengths(&self) {
@@ -343,6 +391,69 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
     }
 }
 
+trait Engine<T: Ord + Debug + Clone + Hash, S: Strength> {
+    fn algorithm_6_11_absorb(&self, excerpt: &OrderedSet<T>, new_trace: &mut Option<Rc<Mop<T, S>>>);
+    fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>>;
+}
+
+impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
+    fn algorithm_6_11_absorb(
+        &self,
+        excerpt: &OrderedSet<T>,
+        new_trace: &mut Option<Rc<Mop<T, S>>>,
+    ) {
+        let big_x_u = excerpt - &self.elements;
+        if big_x_u.len() == 0 {
+            *new_trace = Some(Rc::clone(self));
+            self.trace_strength.increase();
+        } else {
+            let mut big_a = big_x_u.map_intersection(&self.children_r.borrow()).to_set();
+            while let Some(j) = big_a.first() {
+                let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
+                j_mop.algorithm_6_11_absorb(excerpt, new_trace);
+                big_a = big_a - j_mop_indices;
+            }
+            let temp_set = big_x_u
+                .map_difference(&self.children_r.borrow())
+                .difference(self.children_v.borrow().keys())
+                .to_set();
+            if temp_set.len() > 0 {
+                if let Some(p) = new_trace {
+                    self.insert_v_child(temp_set.iter(), p);
+                } else {
+                    let p = Mop::<T, S>::new_trace(excerpt.clone());
+                    self.insert_r_child(temp_set.iter(), &p);
+                    *new_trace = Some(p);
+                }
+            }
+            self.epitome_strength.increase();
+        }
+        self.undif_strength.increase()
+    }
+
+    fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>> {
+        let mut p = Rc::clone(self);
+        println!("me: {} query: {}", self.format_mop(), format_set(&query));
+        let mut big_j = query - &self.elements;
+        println!("J = {}", format_set(&big_j));
+        while let Some(j) = big_j.first() {
+            let j_copy = j.clone();
+            if let Some(j_mop) = p.get_r_child(j) {
+                p = j_mop;
+                big_j = big_j.difference(&p.elements).to_set();
+            } else if let Some(j_mop) = p.get_v_child(j) {
+                p = j_mop;
+                big_j = big_j.difference(&p.elements).to_set();
+            } else {
+                println!("Result = None");
+                return None;
+            }
+            println!("j = {:?} p = {}  J = {}", j_copy, p.format_mop(), format_set(&big_j));
+        }
+        println!("Result = {}", p.format_mop());
+        Some(p)
+    }
+}
 
 #[derive(Debug)]
 pub struct RedundantDiscriminationTree<T: Ord + Debug + Clone + Hash, S: Strength> {
@@ -364,8 +475,9 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> RedundantDiscriminationTree<T, 
             .algorithm_6_4_reorganize(&excerpt, &self.mop, &mut big_u);
         self.mop
             .algorithm_6_7_reorganize(&excerpt, &self.mop, &mut big_u);
-        //assert!(self.mop.is_recursive_compatible_with(&excerpt));
+        assert!(self.mop.is_recursive_compatible_with(&excerpt));
         self.mop.algorithm_6_11_absorb(&excerpt, &mut new_trace);
+        assert!(self.mop.verify_tree());
     }
 
     pub fn include_experience(&mut self, experience: &[T]) {
@@ -375,6 +487,10 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> RedundantDiscriminationTree<T, 
 
     pub fn decrement_strengths(&mut self) {
         self.mop.algorithm_6_12_decr_strengths();
+    }
+
+    pub fn complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>> {
+        self.mop.algorithm_6_13_complete_match(&query)
     }
 }
 
@@ -387,7 +503,9 @@ pub struct SimpleStrength {
 
 impl Strength for SimpleStrength {
     fn new(incr_value: bool) -> Self {
-        let mut strength = Self { value: Cell::new(0.0) };
+        let strength = Self {
+            value: Cell::new(0.0),
+        };
         if incr_value {
             strength.increase();
         }
@@ -446,13 +564,20 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
             result = false;
         };
         if !r_indices.is_disjoint(&v_indices) {
-            println!(
-                "indices overlap {} <> {}",
-                format_set(&r_indices),
-                format_set(&v_indices)
-            );
+            println!("child indices overlap {}", self.format_mop());
             result = false;
         };
+        result
+    }
+
+    fn verify_tree(&self) -> bool {
+        let mut result = self.verify_mop();
+        let mut big_j = self.children_r.borrow().keys().to_set();
+        while let Some(j) = big_j.first() {
+            let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
+            big_j = big_j.difference(&j_mop_indices).to_set();
+            result = result && j_mop.verify_tree();
+        }
         result
     }
 }
@@ -469,5 +594,52 @@ mod tests {
         assert!(rdt.complete_match(&excerpt).is_none());
         rdt.include_excerpt(excerpt.clone());
         assert!(rdt.complete_match(&excerpt).is_some());
+        rdt.include_experience(&["a", "b", "c"]);
+        assert!(rdt.complete_match(&vec!["a", "b", "c"].into()).is_some());
+        rdt.include_experience(&["a", "b", "d"]);
+        assert!(rdt.complete_match(&vec!["a", "b", "d"].into()).is_some());
+        rdt.include_experience(&["a", "d"]);
+        assert!(rdt.complete_match(&vec!["a", "b", "c"].into()).is_some());
+        assert!(rdt.complete_match(&vec!["a", "b", "d"].into()).is_some());
+        assert!(rdt.complete_match(&vec!["a", "d"].into()).is_some());
+        assert!(rdt.complete_match(&vec!["a", "b"].into()).is_some());
+        assert!(rdt.complete_match(&vec!["d", "b"].into()).is_some());
+
+        assert_eq!(
+            rdt.complete_match(&vec!["a", "b", "c"].into())
+                .unwrap()
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b", "c"])
+        );
+        assert_eq!(
+            rdt.complete_match(&vec!["a", "b", "d"].into())
+                .unwrap()
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b", "d"])
+        );
+        assert_eq!(
+            rdt.complete_match(&vec!["a", "d"].into())
+                .unwrap()
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "d"])
+        );
+        assert_eq!(
+            rdt.complete_match(&vec!["a", "b"].into())
+                .unwrap()
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b"])
+        );
+        assert_eq!(
+            rdt.complete_match(&vec!["d", "b"].into())
+                .unwrap()
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b", "d"])
+        );
+        assert_eq!(
+            rdt.complete_match(&vec!["d", "b", "a", "c"].into())
+                .unwrap()
+                .elements(),
+                &OrderedSet::<&str>::from(vec!["a", "b", "c", "d"])
+        );
     }
 }
