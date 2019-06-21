@@ -12,8 +12,7 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-use std::cmp::{Eq, PartialEq};
-use std::collections::HashSet;
+use std::cmp::{Eq, PartialEq, Ordering};
 use std::hash::{Hash, Hasher};
 
 use ordered_collections::OrderedMap;
@@ -29,13 +28,13 @@ pub trait MopIfce<T: Ord + Clone> {
     fn is_epitome(&self) -> bool;
 }
 
-pub trait MopQueries<T: Ord + Clone, R: MopIfce<T>> {
+pub trait MopQueries<T: Ord + Clone, R: MopIfce<T> + Ord> {
     fn complete_match(&self, query: &OrderedSet<T>) -> Option<&R>;
-    fn partial_matches_rv(&self, query: &OrderedSet<T>) -> HashSet<&R>;
-    fn partial_matches(&self, query: &OrderedSet<T>) -> HashSet<&R>;
+    fn partial_matches_rv(&self, query: &OrderedSet<T>) -> OrderedSet<&R>;
+    fn partial_matches(&self, query: &OrderedSet<T>) -> OrderedSet<&R>;
 
-    fn traces(&self) -> HashSet<&R>;
-    fn epitomes(&self) -> HashSet<&R>;
+    fn traces(&self) -> OrderedSet<&R>;
+    fn epitomes(&self) -> OrderedSet<&R>;
 }
 
 pub trait Strength: Copy {
@@ -61,6 +60,18 @@ impl<T: Ord + Clone + Hash, S: Strength> PartialEq for Mop<T, S> {
 }
 
 impl<T: Ord + Clone + Hash, S: Strength> Eq for Mop<T, S> {}
+
+impl<T: Ord + Clone + Hash, S: Strength> PartialOrd for Mop<T, S> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: Ord + Clone + Hash, S: Strength> Ord for Mop<T, S> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.elements.cmp(&other.elements)
+    }
+}
 
 impl<T: Ord + Clone + Hash, S: Strength> Hash for Mop<T, S> {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -127,8 +138,8 @@ where
     }
 
     // Algorithm 3.3
-    fn partial_matches_rv(&self, query: &OrderedSet<T>) -> HashSet<&Self> {
-        let mut matches = HashSet::new();
+    fn partial_matches_rv(&self, query: &OrderedSet<T>) -> OrderedSet<&Self> {
+        let mut matches = OrderedSet::new();
         if query.is_map_disjoint(&self.children) {
             if !self.elements().is_disjoint(query) {
                 matches.insert(self);
@@ -146,8 +157,8 @@ where
     }
 
     // Algorithm 3.4
-    fn partial_matches(&self, query: &OrderedSet<T>) -> HashSet<&Self> {
-        let mut matches = HashSet::new();
+    fn partial_matches(&self, query: &OrderedSet<T>) -> OrderedSet<&Self> {
+        let mut matches = OrderedSet::new();
         if query.is_map_disjoint(&self.children) {
             if !self.elements().is_disjoint(query) {
                 matches.insert(self);
@@ -169,8 +180,8 @@ where
     }
 
     // Algorithm 3.6
-    fn traces(&self) -> HashSet<&Self> {
-        let mut matches = HashSet::new();
+    fn traces(&self) -> OrderedSet<&Self> {
+        let mut matches = OrderedSet::new();
         if self.is_trace() {
             matches.insert(self);
         }
@@ -187,8 +198,8 @@ where
     }
 
     // Algorithm B.1
-    fn epitomes(&self) -> HashSet<&Self> {
-        let mut matches = HashSet::new();
+    fn epitomes(&self) -> OrderedSet<&Self> {
+        let mut matches = OrderedSet::new();
         if self.is_epitome() {
             matches.insert(self);
         }
@@ -227,8 +238,8 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     }
 
     // Algorithm 3.5
-    fn partial_matches_after(&self, query: &OrderedSet<T>, k: &T) -> HashSet<&Self> {
-        let mut matches = HashSet::new();
+    fn partial_matches_after(&self, query: &OrderedSet<T>, k: &T) -> OrderedSet<&Self> {
+        let mut matches = OrderedSet::new();
         if query.is_map_disjoint(&self.children) {
             if !self.elements.is_disjoint(query) {
                 matches.insert(self);
@@ -250,8 +261,8 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     }
 
     // Algorithm 3.7
-    fn traces_after(&self, k: &T) -> HashSet<&Self> {
-        let mut matches = HashSet::new();
+    fn traces_after(&self, k: &T) -> OrderedSet<&Self> {
+        let mut matches = OrderedSet::new();
         if self.is_trace() {
             matches.insert(self);
         }
@@ -268,8 +279,8 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     }
 
     // Algorithm B.2
-    fn epitomes_after(&self, k: &T) -> HashSet<&Self> {
-        let mut matches = HashSet::new();
+    fn epitomes_after(&self, k: &T) -> OrderedSet<&Self> {
+        let mut matches = OrderedSet::new();
         if self.is_epitome() {
             matches.insert(self);
         }
@@ -448,19 +459,19 @@ impl<T: Ord + Clone + Hash, S: Strength> YardstickRDT<T, S> {
         self.mop.complete_match(query)
     }
 
-    pub fn partial_matches_rv(&self, query: &OrderedSet<T>) -> HashSet<&Mop<T, S>> {
+    pub fn partial_matches_rv(&self, query: &OrderedSet<T>) -> OrderedSet<&Mop<T, S>> {
         self.mop.partial_matches_rv(query)
     }
 
-    pub fn partial_matches(&self, query: &OrderedSet<T>) -> HashSet<&Mop<T, S>> {
+    pub fn partial_matches(&self, query: &OrderedSet<T>) -> OrderedSet<&Mop<T, S>> {
         self.mop.partial_matches(query)
     }
 
-    pub fn traces(&self) -> HashSet<&Mop<T, S>> {
+    pub fn traces(&self) -> OrderedSet<&Mop<T, S>> {
         self.mop.traces()
     }
 
-    pub fn epitomes(&self) -> HashSet<&Mop<T, S>> {
+    pub fn epitomes(&self) -> OrderedSet<&Mop<T, S>> {
         self.mop.epitomes()
     }
 }
