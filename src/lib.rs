@@ -16,6 +16,7 @@ extern crate ordered_collections;
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -51,6 +52,18 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> PartialEq for Mop<T, S> {
 }
 
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Eq for Mop<T, S> {}
+
+impl<T: Ord + Debug + Clone + Hash, S: Strength> PartialOrd for Mop<T, S> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: Ord + Debug + Clone + Hash, S: Strength> Ord for Mop<T, S> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.elements.cmp(&other.elements)
+    }
+}
 
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Hash for Mop<T, S> {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -394,6 +407,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
 trait Engine<T: Ord + Debug + Clone + Hash, S: Strength> {
     fn algorithm_6_11_absorb(&self, excerpt: &OrderedSet<T>, new_trace: &mut Option<Rc<Mop<T, S>>>);
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>>;
+    fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>>;
 }
 
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
@@ -452,6 +466,10 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
         }
         println!("Result = {}", p.format_mop());
         Some(p)
+    }
+
+    fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>> {
+        OrderedSet::default()
     }
 }
 
