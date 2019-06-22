@@ -12,12 +12,12 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-use std::cmp::{Eq, PartialEq, Ordering};
+use std::cmp::{Eq, Ordering, PartialEq};
 use std::hash::{Hash, Hasher};
 
+use ordered_collections::ordered_iterators::*;
 use ordered_collections::OrderedMap;
 use ordered_collections::OrderedSet;
-use ordered_collections::ordered_iterators::*;
 
 pub trait MopIfce<T: Ord + Clone> {
     fn elements(&self) -> &OrderedSet<T>;
@@ -490,7 +490,9 @@ mod tests {
         rdt.include_excerpt(excerpt.clone());
         assert!(rdt.complete_match(&excerpt).is_some());
         rdt.include_experience(&["a", "b", "c"]);
+        assert!(rdt.complete_match(&vec!["a", "b", "c"].into()).is_some());
         rdt.include_experience(&["a", "b", "d"]);
+        assert!(rdt.complete_match(&vec!["a", "b", "d"].into()).is_some());
         rdt.include_experience(&["a", "d"]);
         assert!(rdt.complete_match(&vec!["a", "b", "c"].into()).is_some());
         assert!(rdt.complete_match(&vec!["a", "b", "d"].into()).is_some());
@@ -502,37 +504,37 @@ mod tests {
             rdt.complete_match(&vec!["a", "b", "c"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b", "c"])
+            &OrderedSet::<&str>::from(vec!["a", "b", "c"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["a", "b", "d"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b", "d"])
+            &OrderedSet::<&str>::from(vec!["a", "b", "d"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["a", "d"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "d"])
+            &OrderedSet::<&str>::from(vec!["a", "d"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["a", "b"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b"])
+            &OrderedSet::<&str>::from(vec!["a", "b"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["d", "b"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b", "d"])
+            &OrderedSet::<&str>::from(vec!["a", "b", "d"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["d", "b", "a", "c"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b", "c", "d"])
+            &OrderedSet::<&str>::from(vec!["a", "b", "c", "d"])
         );
 
         assert_eq!(rdt.traces().len(), 4);

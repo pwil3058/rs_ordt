@@ -15,8 +15,8 @@
 extern crate ordered_collections;
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -215,6 +215,11 @@ impl<'a, T: 'a + Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         }
     }
 
+    fn is_disjoint_child_indices(&self, set: &OrderedSet<T>) -> bool {
+        self.children_r.borrow().keys().is_disjoint(set.iter())
+            && self.children_v.borrow().keys().is_disjoint(set.iter())
+    }
+
     fn merged_children(&self) -> RefCell<OrderedMap<T, Rc<Self>>> {
         let map = self
             .children_r
@@ -408,6 +413,7 @@ trait Engine<T: Ord + Debug + Clone + Hash, S: Strength> {
     fn algorithm_6_11_absorb(&self, excerpt: &OrderedSet<T>, new_trace: &mut Option<Rc<Mop<T, S>>>);
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>>;
     fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>>;
+    fn algorithm_6_15_patrial_match_after(&self, query: &OrderedSet<T>, k: &T) -> OrderedSet<Rc<Mop<T, S>>>;
 }
 
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
@@ -462,14 +468,73 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
                 println!("Result = None");
                 return None;
             }
-            println!("j = {:?} p = {}  J = {}", j_copy, p.format_mop(), format_set(&big_j));
+            println!(
+                "j = {:?} p = {}  J = {}",
+                j_copy,
+                p.format_mop(),
+                format_set(&big_j)
+            );
         }
         println!("Result = {}", p.format_mop());
         Some(p)
     }
 
     fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>> {
-        OrderedSet::default()
+        let mut big_s = OrderedSet::default();
+        if self.is_disjoint_child_indices(query) {
+            if !query.is_disjoint(self.elements()) {
+                big_s.insert(Rc::clone(self));
+            }
+        } else {
+            let mut big_j = query.difference(self.elements()).to_set();
+            while let Some(j) = big_j.first() {
+                if let Some((j_mop, j_mop_indices)) = self.get_r_child_and_indices(j) {
+                    let first = j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap();
+                    if first == j {
+                        big_s = big_s.union(&j_mop.algorithm_6_15_patrial_match_after(query, j)).to_set();
+                    }
+                    big_j = big_j.difference(&j_mop_indices).to_set();
+                } else if let Some((j_mop, j_mop_indices)) = self.get_v_child_and_indices(j) {
+                    let first = j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap();
+                    if first == j {
+                        big_s = big_s.union(&j_mop.algorithm_6_15_patrial_match_after(query, j)).to_set();
+                    }
+                    big_j = big_j.difference(&j_mop_indices).to_set();
+                } else {
+                    big_j = big_j.iter().skip_past(j).to_set();
+                }
+            }
+        }
+        big_s
+    }
+
+    fn algorithm_6_15_patrial_match_after(&self, query: &OrderedSet<T>, k: &T) -> OrderedSet<Rc<Mop<T, S>>> {
+        let mut big_s = OrderedSet::default();
+        if self.is_disjoint_child_indices(query) {
+            if !query.is_disjoint(self.elements()) {
+                big_s.insert(Rc::clone(self));
+            }
+        } else {
+            let mut big_j = query.difference(self.elements()).skip_past(k).to_set();
+            while let Some(j) = big_j.first() {
+                if let Some((j_mop, j_mop_indices)) = self.get_r_child_and_indices(j) {
+                    let first = j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap();
+                    if first == j {
+                        big_s = big_s.union(&j_mop.algorithm_6_15_patrial_match_after(query, j)).to_set();
+                    }
+                    big_j = big_j.difference(&j_mop_indices).to_set();
+                } else if let Some((j_mop, j_mop_indices)) = self.get_v_child_and_indices(j) {
+                    let first = j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap();
+                    if first == j {
+                        big_s = big_s.union(&j_mop.algorithm_6_15_patrial_match_after(query, j)).to_set();
+                    }
+                    big_j = big_j.difference(&j_mop_indices).to_set();
+                } else {
+                    big_j = big_j.iter().skip_past(j).to_set();
+                }
+            }
+        }
+        big_s
     }
 }
 
@@ -509,6 +574,10 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> RedundantDiscriminationTree<T, 
 
     pub fn complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>> {
         self.mop.algorithm_6_13_complete_match(&query)
+    }
+
+    pub fn partial_matches(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>> {
+        self.mop.algorithm_6_14_patrial_match(query)
     }
 }
 
@@ -627,37 +696,48 @@ mod tests {
             rdt.complete_match(&vec!["a", "b", "c"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b", "c"])
+            &OrderedSet::<&str>::from(vec!["a", "b", "c"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["a", "b", "d"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b", "d"])
+            &OrderedSet::<&str>::from(vec!["a", "b", "d"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["a", "d"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "d"])
+            &OrderedSet::<&str>::from(vec!["a", "d"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["a", "b"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b"])
+            &OrderedSet::<&str>::from(vec!["a", "b"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["d", "b"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b", "d"])
+            &OrderedSet::<&str>::from(vec!["a", "b", "d"])
         );
         assert_eq!(
             rdt.complete_match(&vec!["d", "b", "a", "c"].into())
                 .unwrap()
                 .elements(),
-                &OrderedSet::<&str>::from(vec!["a", "b", "c", "d"])
+            &OrderedSet::<&str>::from(vec!["a", "b", "c", "d"])
         );
+
+        rdt.include_experience(&vec!["e", "b", "d"]);
+        assert!(rdt.complete_match(&vec!["a", "e"].into()).is_none());
+        assert!(
+            rdt.complete_match(&vec!["d", "b", "e"].into())
+                .unwrap()
+                .elements()
+                .len()
+                == 3
+        );
+        assert_eq!(rdt.partial_matches(&vec!["a", "d", "e"].into()).len(), 2);
     }
 }
