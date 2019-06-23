@@ -453,11 +453,8 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
 
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>> {
         let mut p = Rc::clone(self);
-        println!("me: {} query: {}", self.format_mop(), format_set(&query));
         let mut big_j = query - &self.elements;
-        println!("J = {}", format_set(&big_j));
         while let Some(j) = big_j.first() {
-            let j_copy = j.clone();
             if let Some(j_mop) = p.get_r_child(j) {
                 p = j_mop;
                 big_j = big_j.difference(&p.elements).to_set();
@@ -465,17 +462,9 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
                 p = j_mop;
                 big_j = big_j.difference(&p.elements).to_set();
             } else {
-                println!("Result = None");
                 return None;
             }
-            println!(
-                "j = {:?} p = {}  J = {}",
-                j_copy,
-                p.format_mop(),
-                format_set(&big_j)
-            );
         }
-        println!("Result = {}", p.format_mop());
         Some(p)
     }
 
@@ -677,7 +666,6 @@ mod tests {
     fn it_works() {
         let mut rdt = RedundantDiscriminationTree::<&str, SimpleStrength>::new();
         let excerpt: OrderedSet<&str> = vec!["a", "b", "c", "d"].into();
-        println!("{:?}", rdt.complete_match(&excerpt));
         assert!(rdt.complete_match(&excerpt).is_none());
         rdt.include_excerpt(excerpt.clone());
         assert!(rdt.complete_match(&excerpt).is_some());
