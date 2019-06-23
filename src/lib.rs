@@ -413,8 +413,13 @@ trait Engine<T: Ord + Debug + Clone + Hash, S: Strength> {
     fn algorithm_6_11_absorb(&self, excerpt: &OrderedSet<T>, new_trace: &mut Option<Rc<Mop<T, S>>>);
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>>;
     fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>>;
-    fn algorithm_6_15_patrial_match_after(&self, query: &OrderedSet<T>, k: &T) -> OrderedSet<Rc<Mop<T, S>>>;
+    fn algorithm_6_15_patrial_match_after(
+        &self,
+        query: &OrderedSet<T>,
+        k: &T,
+    ) -> OrderedSet<Rc<Mop<T, S>>>;
     fn algorithm_b8_mod_traces_after(&self, after: &T) -> OrderedSet<Rc<Mop<T, S>>>;
+    fn algorithm_b10_mod_epitomes_after(&self, k: &T) -> OrderedSet<Rc<Mop<T, S>>>;
 }
 
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
@@ -478,11 +483,23 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
         } else {
             for j in query.difference(self.elements()) {
                 if let Some(j_mop) = self.get_r_child(j) {
-                    if j == j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap() {
+                    if j == j_mop
+                        .elements()
+                        .difference(self.elements())
+                        .intersection(query.iter())
+                        .next()
+                        .unwrap()
+                    {
                         big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
                 } else if let Some(j_mop) = self.get_v_child(j) {
-                    if j == j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap() {
+                    if j == j_mop
+                        .elements()
+                        .difference(self.elements())
+                        .intersection(query.iter())
+                        .next()
+                        .unwrap()
+                    {
                         big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
                 }
@@ -491,7 +508,11 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
         big_s
     }
 
-    fn algorithm_6_15_patrial_match_after(&self, query: &OrderedSet<T>, k: &T) -> OrderedSet<Rc<Mop<T, S>>> {
+    fn algorithm_6_15_patrial_match_after(
+        &self,
+        query: &OrderedSet<T>,
+        k: &T,
+    ) -> OrderedSet<Rc<Mop<T, S>>> {
         let mut big_s = OrderedSet::default();
         if self.is_disjoint_child_indices(query) {
             if !query.is_disjoint(self.elements()) {
@@ -500,11 +521,23 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
         } else {
             for j in query.difference(self.elements()).skip_past(k) {
                 if let Some(j_mop) = self.get_r_child(j) {
-                    if j == j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap() {
+                    if j == j_mop
+                        .elements()
+                        .difference(self.elements())
+                        .intersection(query.iter())
+                        .next()
+                        .unwrap()
+                    {
                         big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
                 } else if let Some(j_mop) = self.get_v_child(j) {
-                    if j == j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap() {
+                    if j == j_mop
+                        .elements()
+                        .difference(self.elements())
+                        .intersection(query.iter())
+                        .next()
+                        .unwrap()
+                    {
                         big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
                 }
@@ -518,9 +551,32 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
         if self.is_trace() {
             big_s.insert(Rc::clone(self));
         }
-        for (j, j_mop) in self.children_r.borrow().merge(&self.children_v.borrow()).skip_past(k) {
+        for (j, j_mop) in self
+            .children_r
+            .borrow()
+            .merge(&self.children_v.borrow())
+            .skip_past(k)
+        {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
+            }
+        }
+        big_s
+    }
+
+    fn algorithm_b10_mod_epitomes_after(&self, k: &T) -> OrderedSet<Rc<Mop<T, S>>> {
+        let mut big_s = OrderedSet::default();
+        if self.is_epitome() {
+            big_s.insert(Rc::clone(self));
+        }
+        for (j, j_mop) in self
+            .children_r
+            .borrow()
+            .merge(&self.children_v.borrow())
+            .skip_past(k)
+        {
+            if j == j_mop.elements().difference(self.elements()).next().unwrap() {
+                big_s = big_s | j_mop.algorithm_b10_mod_epitomes_after(j);
             }
         }
         big_s
@@ -529,6 +585,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
 
 pub trait Public<T: Ord + Debug + Clone + Hash, S: Strength> {
     fn traces(&self) -> OrderedSet<Rc<Mop<T, S>>>;
+    fn epitomes(&self) -> OrderedSet<Rc<Mop<T, S>>>;
 }
 
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Public<T, S> for Rc<Mop<T, S>> {
@@ -540,6 +597,19 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Public<T, S> for Rc<Mop<T, S>> 
         for (j, j_mop) in self.children_r.borrow().merge(&self.children_v.borrow()) {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
+            }
+        }
+        big_s
+    }
+
+    fn epitomes(&self) -> OrderedSet<Rc<Mop<T, S>>> {
+        let mut big_s = OrderedSet::default();
+        if self.is_epitome() {
+            big_s.insert(Rc::clone(self));
+        }
+        for (j, j_mop) in self.children_r.borrow().merge(&self.children_v.borrow()) {
+            if j == j_mop.elements().difference(self.elements()).next().unwrap() {
+                big_s = big_s | j_mop.algorithm_b10_mod_epitomes_after(j);
             }
         }
         big_s
@@ -590,6 +660,10 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> RedundantDiscriminationTree<T, 
 
     pub fn traces(&self) -> OrderedSet<Rc<Mop<T, S>>> {
         self.mop.traces()
+    }
+
+    pub fn epitomes(&self) -> OrderedSet<Rc<Mop<T, S>>> {
+        self.mop.epitomes()
     }
 }
 
@@ -741,6 +815,7 @@ mod tests {
         );
 
         assert_eq!(rdt.traces().len(), 4);
+        assert_eq!(rdt.epitomes().len(), 6);
 
         rdt.include_experience(&vec!["e", "b", "d"]);
         assert!(rdt.complete_match(&vec!["a", "e"].into()).is_none());
@@ -754,5 +829,7 @@ mod tests {
         assert_eq!(rdt.partial_matches(&vec!["a", "d", "e"].into()).len(), 2);
 
         assert_eq!(rdt.traces().len(), 5);
+        assert_eq!(rdt.epitomes().len(), 9);
+        rdt.decrement_strengths();
     }
 }
