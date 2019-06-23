@@ -295,7 +295,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
                 assert!(j_mop.verify_mop());
                 assert!(base_mop.verify_mop());
                 big_u.insert((Rc::clone(p), j_mop));
-            } else if !excerpt.is_superset(&j_mop.elements) {
+            } else if !excerpt.is_superset(&j_mop.elements.difference(&self.elements).to_set()) {
                 self.algorithm_6_2_interpose(j, excerpt);
                 let j_mop = self.get_r_child(j).unwrap();
                 j_mop.algorithm_6_9_fix_v_links(big_u);
@@ -313,16 +313,21 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
     }
 
     fn algorithm_6_6_interpose(&self, j: &T, excerpt: &OrderedSet<T>) {
-        let (j_mop, j_mop_indices) = self.get_v_child_and_indices(j).unwrap();
+        let (j_mop_v, j_mop_v_indices) = self.get_v_child_and_indices(j).unwrap();
         let m = Self::new_epitome(
-            j_mop.elements.intersection(excerpt).to_set(),
-            j_mop.merged_children(),
-            &j_mop.undif_strength,
+            j_mop_v.elements.intersection(excerpt).to_set(),
+            j_mop_v.merged_children(),
+            &j_mop_v.undif_strength,
         );
-        m.insert_v_child(j_mop.elements.difference(&m.elements), &j_mop);
+        m.insert_v_child(
+            j_mop_v
+            .elements
+            .difference(&m.elements),
+            &j_mop_v
+        );
         assert!(m.verify_mop());
-        self.insert_r_child(excerpt.intersection(&j_mop_indices), &m);
-        self.delete_v_children(excerpt.intersection(&j_mop_indices));
+        self.insert_r_child(excerpt.intersection(&j_mop_v_indices), &m);
+        self.delete_v_children(excerpt.intersection(&j_mop_v_indices));
         assert!(self.verify_mop());
     }
 
@@ -359,7 +364,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
     fn algorithm_6_9_fix_v_links(&self, big_u: &HashSet<(Rc<Self>, Rc<Self>)>) {
         for (m1, m2) in big_u.iter() {
             if m2.elements.is_superset(&self.elements) {
-                for k in m2.elements.difference(&self.elements) {
+                for k in m2.elements.iter() {
                     if let Some(k_mop_v) = self.get_v_child(k) {
                         if k_mop_v == *m1 {
                             self.children_v
@@ -374,7 +379,8 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
 
     fn algorithm_6_10_fix_v_links(&self, mops: &(Rc<Self>, Rc<Self>)) {
         if mops.1.elements.is_superset(&self.elements) {
-            for k in mops.1.elements.difference(&self.elements) {
+            let big_c_r = mops.1.elements.difference(&self.elements).to_set();
+            for k in big_c_r.iter() {
                 if let Some(mop_k_v) = self.get_v_child(k) {
                     if mop_k_v == mops.0 {
                         self.children_v
@@ -383,16 +389,14 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
                     }
                 }
             }
-        }
-        let mut big_a = mops
-            .1
-            .elements
-            .map_intersection(&self.children_r.borrow())
-            .to_set();
-        while let Some(j) = big_a.first() {
-            let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
-            j_mop.algorithm_6_10_fix_v_links(mops);
-            big_a = big_a - j_mop_indices;
+            let mut big_a = big_c_r
+                .map_intersection(&self.children_r.borrow())
+                .to_set();
+            while let Some(j) = big_a.first() {
+                let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
+                j_mop.algorithm_6_10_fix_v_links(mops);
+                big_a = big_a - j_mop_indices;
+            }
         }
     }
 
@@ -565,6 +569,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
     }
 
     fn algorithm_b10_mod_epitomes_after(&self, k: &T) -> OrderedSet<Rc<Mop<T, S>>> {
+        println!("C: {} is epitome? {} {}", format_set(&self.elements()), self.is_epitome(), self.format_mop());
         let mut big_s = OrderedSet::default();
         if self.is_epitome() {
             big_s.insert(Rc::clone(self));
@@ -603,6 +608,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Public<T, S> for Rc<Mop<T, S>> 
     }
 
     fn epitomes(&self) -> OrderedSet<Rc<Mop<T, S>>> {
+        println!("C: {} is epitome? {} {}", format_set(&self.elements()), self.is_epitome(), self.format_mop());
         let mut big_s = OrderedSet::default();
         if self.is_epitome() {
             big_s.insert(Rc::clone(self));
