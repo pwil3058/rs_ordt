@@ -414,6 +414,7 @@ trait Engine<T: Ord + Debug + Clone + Hash, S: Strength> {
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>>;
     fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>>;
     fn algorithm_6_15_patrial_match_after(&self, query: &OrderedSet<T>, k: &T) -> OrderedSet<Rc<Mop<T, S>>>;
+    fn algorithm_b8_mod_traces_after(&self, after: &T) -> OrderedSet<Rc<Mop<T, S>>>;
 }
 
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
@@ -475,22 +476,15 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
                 big_s.insert(Rc::clone(self));
             }
         } else {
-            let mut big_j = query.difference(self.elements()).to_set();
-            while let Some(j) = big_j.first() {
-                if let Some((j_mop, j_mop_indices)) = self.get_r_child_and_indices(j) {
-                    let first = j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap();
-                    if first == j {
-                        big_s = big_s.union(&j_mop.algorithm_6_15_patrial_match_after(query, j)).to_set();
+            for j in query.difference(self.elements()) {
+                if let Some(j_mop) = self.get_r_child(j) {
+                    if j == j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap() {
+                        big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
-                    big_j = big_j.difference(&j_mop_indices).to_set();
-                } else if let Some((j_mop, j_mop_indices)) = self.get_v_child_and_indices(j) {
-                    let first = j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap();
-                    if first == j {
-                        big_s = big_s.union(&j_mop.algorithm_6_15_patrial_match_after(query, j)).to_set();
+                } else if let Some(j_mop) = self.get_v_child(j) {
+                    if j == j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap() {
+                        big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
-                    big_j = big_j.difference(&j_mop_indices).to_set();
-                } else {
-                    big_j = big_j.iter().skip_past(j).to_set();
                 }
             }
         }
@@ -504,23 +498,48 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
                 big_s.insert(Rc::clone(self));
             }
         } else {
-            let mut big_j = query.difference(self.elements()).skip_past(k).to_set();
-            while let Some(j) = big_j.first() {
-                if let Some((j_mop, j_mop_indices)) = self.get_r_child_and_indices(j) {
-                    let first = j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap();
-                    if first == j {
-                        big_s = big_s.union(&j_mop.algorithm_6_15_patrial_match_after(query, j)).to_set();
+            for j in query.difference(self.elements()).skip_past(k) {
+                if let Some(j_mop) = self.get_r_child(j) {
+                    if j == j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap() {
+                        big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
-                    big_j = big_j.difference(&j_mop_indices).to_set();
-                } else if let Some((j_mop, j_mop_indices)) = self.get_v_child_and_indices(j) {
-                    let first = j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap();
-                    if first == j {
-                        big_s = big_s.union(&j_mop.algorithm_6_15_patrial_match_after(query, j)).to_set();
+                } else if let Some(j_mop) = self.get_v_child(j) {
+                    if j == j_mop.elements().difference(self.elements()).intersection(query.iter()).next().unwrap() {
+                        big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
-                    big_j = big_j.difference(&j_mop_indices).to_set();
-                } else {
-                    big_j = big_j.iter().skip_past(j).to_set();
                 }
+            }
+        }
+        big_s
+    }
+
+    fn algorithm_b8_mod_traces_after(&self, k: &T) -> OrderedSet<Rc<Mop<T, S>>> {
+        let mut big_s = OrderedSet::default();
+        if self.is_trace() {
+            big_s.insert(Rc::clone(self));
+        }
+        for (j, j_mop) in self.children_r.borrow().merge(&self.children_v.borrow()).skip_past(k) {
+            if j == j_mop.elements().difference(self.elements()).next().unwrap() {
+                big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
+            }
+        }
+        big_s
+    }
+}
+
+pub trait Public<T: Ord + Debug + Clone + Hash, S: Strength> {
+    fn traces(&self) -> OrderedSet<Rc<Mop<T, S>>>;
+}
+
+impl<T: Ord + Debug + Clone + Hash, S: Strength> Public<T, S> for Rc<Mop<T, S>> {
+    fn traces(&self) -> OrderedSet<Rc<Mop<T, S>>> {
+        let mut big_s = OrderedSet::default();
+        if self.is_trace() {
+            big_s.insert(Rc::clone(self));
+        }
+        for (j, j_mop) in self.children_r.borrow().merge(&self.children_v.borrow()) {
+            if j == j_mop.elements().difference(self.elements()).next().unwrap() {
+                big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
             }
         }
         big_s
@@ -567,6 +586,10 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> RedundantDiscriminationTree<T, 
 
     pub fn partial_matches(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>> {
         self.mop.algorithm_6_14_patrial_match(query)
+    }
+
+    pub fn traces(&self) -> OrderedSet<Rc<Mop<T, S>>> {
+        self.mop.traces()
     }
 }
 
@@ -717,6 +740,8 @@ mod tests {
             &OrderedSet::<&str>::from(vec!["a", "b", "c", "d"])
         );
 
+        assert_eq!(rdt.traces().len(), 4);
+
         rdt.include_experience(&vec!["e", "b", "d"]);
         assert!(rdt.complete_match(&vec!["a", "e"].into()).is_none());
         assert!(
@@ -727,5 +752,7 @@ mod tests {
                 == 3
         );
         assert_eq!(rdt.partial_matches(&vec!["a", "d", "e"].into()).len(), 2);
+
+        assert_eq!(rdt.traces().len(), 5);
     }
 }
