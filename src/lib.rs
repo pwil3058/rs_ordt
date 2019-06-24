@@ -319,12 +319,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
             j_mop_v.merged_children(),
             &j_mop_v.undif_strength,
         );
-        m.insert_v_child(
-            j_mop_v
-            .elements
-            .difference(&m.elements),
-            &j_mop_v
-        );
+        m.insert_v_child(j_mop_v.elements.difference(&m.elements), &j_mop_v);
         assert!(m.verify_mop());
         self.insert_r_child(excerpt.intersection(&j_mop_v_indices), &m);
         self.delete_v_children(excerpt.intersection(&j_mop_v_indices));
@@ -389,9 +384,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
                     }
                 }
             }
-            let mut big_a = big_c_r
-                .map_intersection(&self.children_r.borrow())
-                .to_set();
+            let mut big_a = big_c_r.map_intersection(&self.children_r.borrow()).to_set();
             while let Some(j) = big_a.first() {
                 let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
                 j_mop.algorithm_6_10_fix_v_links(mops);
@@ -458,7 +451,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
             }
             self.epitome_strength.increase();
         }
-        self.undif_strength.increase()
+        self.undif_strength.increase();
     }
 
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>> {
@@ -569,7 +562,6 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
     }
 
     fn algorithm_b10_mod_epitomes_after(&self, k: &T) -> OrderedSet<Rc<Mop<T, S>>> {
-        println!("C: {} is epitome? {} {}", format_set(&self.elements()), self.is_epitome(), self.format_mop());
         let mut big_s = OrderedSet::default();
         if self.is_epitome() {
             big_s.insert(Rc::clone(self));
@@ -608,7 +600,6 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Public<T, S> for Rc<Mop<T, S>> 
     }
 
     fn epitomes(&self) -> OrderedSet<Rc<Mop<T, S>>> {
-        println!("C: {} is epitome? {} {}", format_set(&self.elements()), self.is_epitome(), self.format_mop());
         let mut big_s = OrderedSet::default();
         if self.is_epitome() {
             big_s.insert(Rc::clone(self));
@@ -713,13 +704,45 @@ fn format_set<T: Ord + Debug>(set: &OrderedSet<T>) -> String {
 }
 
 impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
-    fn format_mop(&self) -> String {
+    fn format_mop_short(&self) -> String {
         let big_c: Vec<&T> = self.elements.iter().collect();
         let childen_r = self.children_r.borrow();
         let big_i_r: Vec<&T> = childen_r.keys().collect();
         let childen_v = self.children_v.borrow();
         let big_i_v: Vec<&T> = childen_v.keys().collect();
         format!("C: {:?} I_r: {:?} I_v: {:?}", big_c, big_i_r, big_i_v)
+    }
+
+    fn format_mop(&self) -> String {
+        if self.children_r.borrow().len() == 0 && self.children_v.borrow().len() == 0 {
+            return format!("C: {} {{}}", format_set(&self.elements));
+        }
+        let mut fstr = format!("C: {} {{\n", format_set(&self.elements));
+        let mut big_a = self.children_r.borrow().keys().to_set();
+        while let Some(j) = big_a.first() {
+            let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
+            let tstr = format!(
+                "\tR: {} -> {}\n",
+                format_set(&j_mop_indices),
+                j_mop.format_mop_short()
+            );
+            fstr.push_str(&tstr);
+            big_a = big_a - j_mop_indices;
+        }
+        let mut big_a = self.children_v.borrow().keys().to_set();
+        while let Some(j) = big_a.first() {
+            let (j_mop, j_mop_indices) = self.get_v_child_and_indices(j).unwrap();
+            let tstr = format!(
+                "\tV: {} -> {}\n",
+                format_set(&j_mop_indices),
+                j_mop.format_mop_short()
+            );
+            assert!(j_mop_indices.len() > 0);
+            fstr.push_str(&tstr);
+            big_a = big_a - j_mop_indices;
+        }
+        fstr.push_str("}");
+        fstr
     }
 
     fn verify_mop(&self) -> bool {
