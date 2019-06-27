@@ -25,6 +25,7 @@ use ordered_collections::{OrderedMap, OrderedSet};
 
 #[cfg(test)]
 mod yardstick;
+//pub mod ordt_alt;
 
 pub trait Strength: Clone {
     fn new(incr_value: bool) -> Self;
@@ -251,9 +252,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
             &j_mop.undif_strength,
         );
         m.insert_r_child(j_mop.elements.difference(&m.elements), &j_mop);
-        assert!(m.verify_mop());
         self.insert_r_child(j_mop_indices.iter(), &m);
-        assert!(self.verify_mop());
     }
 
     fn algorithm_6_3_split(&self, j: &T, excerpt: &OrderedSet<T>) {
@@ -264,9 +263,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
             &j_mop.undif_strength,
         );
         m.insert_v_child(j_mop.elements.difference(&m.elements), &j_mop);
-        assert!(m.verify_mop());
         self.insert_r_child(excerpt.intersection(&j_mop_indices), &m);
-        assert!(self.verify_mop());
     }
 
     fn algorithm_6_4_reorganize(
@@ -284,16 +281,12 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
                 let j_mop = self.get_r_child(j).unwrap();
                 j_mop.algorithm_6_9_fix_v_links(big_u);
                 base_mop.algorithm_6_10_fix_v_links(&(Rc::clone(p), Rc::clone(&j_mop)));
-                assert!(j_mop.verify_mop());
-                assert!(base_mop.verify_mop());
                 big_u.insert((Rc::clone(p), j_mop));
             } else if !excerpt.is_superset(&j_mop.elements.difference(&self.elements).to_set()) {
                 self.algorithm_6_2_interpose(j, excerpt);
                 let j_mop = self.get_r_child(j).unwrap();
                 j_mop.algorithm_6_9_fix_v_links(big_u);
                 base_mop.algorithm_6_10_fix_v_links(&(Rc::clone(p), Rc::clone(&j_mop)));
-                assert!(j_mop.verify_mop());
-                assert!(base_mop.verify_mop());
                 big_u.insert((Rc::clone(p), j_mop));
             } else {
                 j_mop.algorithm_6_4_reorganize(excerpt, base_mop, big_u);
@@ -301,7 +294,6 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
 
             big_a = big_a - big_i_to;
         }
-        assert!(self.verify_mop());
     }
 
     fn algorithm_6_6_interpose(&self, j: &T, excerpt: &OrderedSet<T>) {
@@ -312,10 +304,8 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
             &j_mop_v.undif_strength,
         );
         m.insert_v_child(j_mop_v.elements.difference(&m.elements), &j_mop_v);
-        assert!(m.verify_mop());
         self.insert_r_child(excerpt.intersection(&j_mop_v_indices), &m);
         self.delete_v_children(excerpt.intersection(&j_mop_v_indices));
-        assert!(self.verify_mop());
     }
 
     fn algorithm_6_7_reorganize(
@@ -336,14 +326,12 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
                 base_mop.algorithm_6_10_fix_v_links(&(Rc::clone(&j_mop_v), Rc::clone(&j_mop)));
                 big_u.insert((Rc::clone(&j_mop_v), Rc::clone(&j_mop)));
                 big_a_v = big_a_v - j_mop_indices;
-                assert!(j_mop.verify_mop());
             }
         }
         let mut big_a = excerpt.map_intersection(&self.children_r.borrow()).to_set();
         while let Some(j) = big_a.first() {
             let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
             j_mop.algorithm_6_7_reorganize(excerpt, base_mop, big_u);
-            assert!(j_mop.verify_mop());
             big_a = big_a - j_mop_indices;
         }
     }
@@ -729,7 +717,6 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
                 format_set(&j_mop_indices),
                 j_mop.format_mop_short()
             );
-            assert!(j_mop_indices.len() > 0);
             fstr.push_str(&tstr);
             big_a = big_a - j_mop_indices;
         }
