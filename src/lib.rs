@@ -16,7 +16,6 @@ extern crate ordered_collections;
 
 use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
-use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -281,7 +280,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         &self,
         excerpt: &OrderedSet<T>,
         base_mop: &Rc<Self>,
-        big_u: &mut HashSet<(Rc<Self>, Rc<Self>)>,
+        big_u: &mut OrderedSet<(Rc<Self>, Rc<Self>)>,
     ) {
         let mut big_a = excerpt.map_intersection(&self.children_r.borrow()).to_set();
         while let Some(j) = big_a.first() {
@@ -330,7 +329,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         &self,
         excerpt: &OrderedSet<T>,
         base_mop: &Rc<Self>,
-        big_u: &mut HashSet<(Rc<Self>, Rc<Self>)>,
+        big_u: &mut OrderedSet<(Rc<Self>, Rc<Self>)>,
     ) {
         let mut big_a_v = excerpt.map_intersection(&self.children_v.borrow()).to_set();
         while let Some(j) = big_a_v.first() {
@@ -356,7 +355,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
         }
     }
 
-    fn algorithm_6_9_fix_v_links(&self, big_u: &HashSet<(Rc<Self>, Rc<Self>)>) {
+    fn algorithm_6_9_fix_v_links(&self, big_u: &OrderedSet<(Rc<Self>, Rc<Self>)>) {
         for (m1, m2) in big_u.iter() {
             if m2.elements.is_superset(&self.elements) {
                 for k in m2.elements.iter() {
@@ -627,7 +626,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> RedundantDiscriminationTree<T, 
 
     // Algorithm 6.1
     pub fn include_excerpt(&mut self, excerpt: OrderedSet<T>) {
-        let mut big_u = HashSet::<(Rc<Mop<T, S>>, Rc<Mop<T, S>>)>::new();
+        let mut big_u = OrderedSet::<(Rc<Mop<T, S>>, Rc<Mop<T, S>>)>::new();
         let mut new_trace: Option<Rc<Mop<T, S>>> = None;
         self.mop
             .algorithm_6_4_reorganize(&excerpt, &self.mop, &mut big_u);
