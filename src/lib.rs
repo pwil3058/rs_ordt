@@ -17,7 +17,6 @@ extern crate ordered_collections;
 use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use ordered_collections::iter_ops::*;
@@ -35,7 +34,7 @@ pub trait Strength: Clone {
 }
 
 #[derive(Clone, Debug)]
-pub struct Mop<T: Ord + Debug + Clone + Hash, S: Strength> {
+pub struct Mop<T: Ord + Debug + Clone, S: Strength> {
     elements: OrderedSet<T>,
     children_r: RefCell<OrderedMap<T, Rc<Self>>>,
     children_v: RefCell<OrderedMap<T, Rc<Self>>>,
@@ -44,33 +43,27 @@ pub struct Mop<T: Ord + Debug + Clone + Hash, S: Strength> {
     undif_strength: S,
 }
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> PartialEq for Mop<T, S> {
+impl<T: Ord + Debug + Clone, S: Strength> PartialEq for Mop<T, S> {
     fn eq(&self, other: &Self) -> bool {
         self.elements == other.elements
     }
 }
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> Eq for Mop<T, S> {}
+impl<T: Ord + Debug + Clone, S: Strength> Eq for Mop<T, S> {}
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> PartialOrd for Mop<T, S> {
+impl<T: Ord + Debug + Clone, S: Strength> PartialOrd for Mop<T, S> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> Ord for Mop<T, S> {
+impl<T: Ord + Debug + Clone, S: Strength> Ord for Mop<T, S> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.elements.cmp(&other.elements)
     }
 }
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> Hash for Mop<T, S> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.elements.hash(state);
-    }
-}
-
-impl<T: Ord + Clone + Hash + Debug, S: Strength> Mop<T, S> {
+impl<T: Ord + Clone + Debug, S: Strength> Mop<T, S> {
     pub fn elements(&self) -> &OrderedSet<T> {
         &self.elements
     }
@@ -93,7 +86,7 @@ impl<T: Ord + Clone + Hash + Debug, S: Strength> Mop<T, S> {
 }
 
 // Support Methods
-impl<'a, T: 'a + Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
+impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
     fn tabula_rasa() -> Rc<Self> {
         Rc::new(Self {
             elements: OrderedSet::<T>::new(),
@@ -249,7 +242,7 @@ impl<'a, T: 'a + Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
 }
 
 // Main algorithms
-impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
+impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
     fn algorithm_6_2_interpose(&self, j: &T, excerpt: &OrderedSet<T>) {
         let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
         let m = Self::new_epitome(
@@ -405,7 +398,7 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
     }
 }
 
-trait Engine<T: Ord + Debug + Clone + Hash, S: Strength> {
+trait Engine<T: Ord + Debug + Clone, S: Strength> {
     fn algorithm_6_11_absorb(&self, excerpt: &OrderedSet<T>, new_trace: &mut Option<Rc<Mop<T, S>>>);
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>>;
     fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>>;
@@ -418,7 +411,7 @@ trait Engine<T: Ord + Debug + Clone + Hash, S: Strength> {
     fn algorithm_b10_mod_epitomes_after(&self, k: &T) -> OrderedSet<Rc<Mop<T, S>>>;
 }
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
+impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
     fn algorithm_6_11_absorb(
         &self,
         excerpt: &OrderedSet<T>,
@@ -579,12 +572,12 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Engine<T, S> for Rc<Mop<T, S>> 
     }
 }
 
-pub trait Public<T: Ord + Debug + Clone + Hash, S: Strength> {
+pub trait Public<T: Ord + Debug + Clone, S: Strength> {
     fn traces(&self) -> OrderedSet<Rc<Mop<T, S>>>;
     fn epitomes(&self) -> OrderedSet<Rc<Mop<T, S>>>;
 }
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> Public<T, S> for Rc<Mop<T, S>> {
+impl<T: Ord + Debug + Clone, S: Strength> Public<T, S> for Rc<Mop<T, S>> {
     fn traces(&self) -> OrderedSet<Rc<Mop<T, S>>> {
         let mut big_s = OrderedSet::default();
         if self.is_trace() {
@@ -613,11 +606,11 @@ impl<T: Ord + Debug + Clone + Hash, S: Strength> Public<T, S> for Rc<Mop<T, S>> 
 }
 
 #[derive(Debug)]
-pub struct RedundantDiscriminationTree<T: Ord + Debug + Clone + Hash, S: Strength> {
+pub struct RedundantDiscriminationTree<T: Ord + Debug + Clone, S: Strength> {
     mop: Rc<Mop<T, S>>,
 }
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> RedundantDiscriminationTree<T, S> {
+impl<T: Ord + Debug + Clone, S: Strength> RedundantDiscriminationTree<T, S> {
     pub fn new() -> Self {
         Self {
             mop: Mop::<T, S>::tabula_rasa(),
@@ -702,7 +695,7 @@ fn format_set<T: Ord + Debug>(set: &OrderedSet<T>) -> String {
     format!("{:?}", v)
 }
 
-impl<T: Ord + Debug + Clone + Hash, S: Strength> Mop<T, S> {
+impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
     fn format_mop_short(&self) -> String {
         let big_c: Vec<&T> = self.elements.iter().collect();
         let childen_r = self.children_r.borrow();
