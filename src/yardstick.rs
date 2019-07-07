@@ -2,16 +2,8 @@ use std::cmp::{Eq, Ordering, PartialEq};
 use std::hash::{Hash, Hasher};
 
 use ordered_collections::{
-    ordered_set::{
-        ord_set_iterators::*,
-    },
-    ordered_map::{
-        ord_map_iterators::{
-            SkipAheadMapIterator,
-        },
-    },
-    OrderedMap,
-    OrderedSet,
+    ordered_map::ord_map_iterators::SkipAheadMapIterator, ordered_set::ord_set_iterators::*,
+    OrderedMap, OrderedSet,
 };
 
 pub trait MopIfce<T: Ord + Clone> {

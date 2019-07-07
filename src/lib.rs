@@ -6,17 +6,9 @@ use std::fmt::Debug;
 use std::rc::Rc;
 
 use ordered_collections::{
-    ordered_set::{
-        ord_set_iterators::*,
-    },
-    ordered_map::{
-        ord_map_iterators::{
-            ToMap,
-            SkipAheadMapIterator,
-        },
-    },
-    OrderedMap,
-    OrderedSet,
+    ordered_map::ord_map_iterators::{SkipAheadMapIterator, ToMap},
+    ordered_set::ord_set_iterators::*,
+    OrderedMap, OrderedSet,
 };
 
 #[cfg(test)]
