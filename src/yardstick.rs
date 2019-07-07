@@ -15,9 +15,18 @@
 use std::cmp::{Eq, Ordering, PartialEq};
 use std::hash::{Hash, Hasher};
 
-use ordered_collections::ordered_iterators::*;
-use ordered_collections::OrderedMap;
-use ordered_collections::OrderedSet;
+use ordered_collections::{
+    ordered_set::{
+        ord_set_iterators::*,
+    },
+    ordered_map::{
+        ord_map_iterators::{
+            SkipAheadMapIterator,
+        },
+    },
+    OrderedMap,
+    OrderedSet,
+};
 
 pub trait MopIfce<T: Ord + Clone> {
     fn elements(&self) -> &OrderedSet<T>;
@@ -267,7 +276,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         if self.is_trace() {
             matches.insert(self);
         }
-        for (j, rdt) in self.children.iter().skip_past(k) {
+        for (j, rdt) in self.children.iter().skip_past_key(k) {
             if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
                     for m in rdt.traces_after(j).drain() {
@@ -285,7 +294,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         if self.is_epitome() {
             matches.insert(self);
         }
-        for (j, rdt) in self.children.iter().skip_past(k) {
+        for (j, rdt) in self.children.iter().skip_past_key(k) {
             if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
                     for m in rdt.traces_after(j).drain() {

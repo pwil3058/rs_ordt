@@ -19,9 +19,19 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::rc::Rc;
 
-use ordered_collections::iter_ops::*;
-use ordered_collections::ordered_iterators::*;
-use ordered_collections::{OrderedMap, OrderedSet};
+use ordered_collections::{
+    ordered_set::{
+        ord_set_iterators::*,
+    },
+    ordered_map::{
+        ord_map_iterators::{
+            ToMap,
+            SkipAheadMapIterator,
+        },
+    },
+    OrderedMap,
+    OrderedSet,
+};
 
 #[cfg(test)]
 mod yardstick;
@@ -532,7 +542,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
             .children_r
             .borrow()
             .merge(&self.children_v.borrow())
-            .skip_past(k)
+            .skip_past_key(k)
         {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
@@ -550,7 +560,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
             .children_r
             .borrow()
             .merge(&self.children_v.borrow())
-            .skip_past(k)
+            .skip_past_key(k)
         {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b10_mod_epitomes_after(j);
