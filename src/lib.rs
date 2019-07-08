@@ -260,7 +260,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
         base_mop: &Rc<Self>,
         big_u: &mut OrderedSet<(Rc<Self>, Rc<Self>)>,
     ) {
-        let mut big_a = excerpt.map_intersection(&self.children_r.borrow()).to_set();
+        let mut big_a = (excerpt.iter() & self.children_r.borrow().keys()).to_set();
         while let Some(j) = big_a.first() {
             let (j_mop, big_i_to) = self.get_r_child_and_indices(j).unwrap();
             let p = &j_mop;
@@ -302,7 +302,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
         base_mop: &Rc<Self>,
         big_u: &mut OrderedSet<(Rc<Self>, Rc<Self>)>,
     ) {
-        let mut big_a_v = excerpt.map_intersection(&self.children_v.borrow()).to_set();
+        let mut big_a_v = (excerpt.iter() & self.children_v.borrow().keys()).to_set();
         while let Some(j) = big_a_v.first() {
             let (j_mop_v, j_mop_v_indices) = self.get_v_child_and_indices(j).unwrap();
             if excerpt.is_superset(&j_mop_v.elements) {
@@ -316,7 +316,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
                 big_a_v = big_a_v - j_mop_indices;
             }
         }
-        let mut big_a = excerpt.map_intersection(&self.children_r.borrow()).to_set();
+        let mut big_a = (excerpt.iter() & self.children_r.borrow().keys()).to_set();
         while let Some(j) = big_a.first() {
             let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
             j_mop.algorithm_6_7_reorganize(excerpt, base_mop, big_u);
@@ -352,7 +352,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
                     }
                 }
             }
-            let mut big_a = big_c_r.map_intersection(&self.children_r.borrow()).to_set();
+            let mut big_a = (big_c_r.iter() & self.children_r.borrow().keys()).to_set();
             while let Some(j) = big_a.first() {
                 let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
                 j_mop.algorithm_6_10_fix_v_links(mops);
@@ -398,16 +398,15 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
             *new_trace = Some(Rc::clone(self));
             self.trace_strength.increase();
         } else {
-            let mut big_a = big_x_u.map_intersection(&self.children_r.borrow()).to_set();
+            let mut big_a = (big_x_u.iter() & self.children_r.borrow().keys()).to_set();
             while let Some(j) = big_a.first() {
                 let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
                 j_mop.algorithm_6_11_absorb(excerpt, new_trace);
                 big_a = big_a - j_mop_indices;
             }
-            let temp_set = big_x_u
-                .map_difference(&self.children_r.borrow())
-                .difference(self.children_v.borrow().keys())
-                .to_set();
+            let temp_set = ((big_x_u.iter() - self.children_r.borrow().keys())
+                - self.children_v.borrow().keys())
+            .to_set();
             if temp_set.len() > 0 {
                 if let Some(p) = new_trace {
                     self.insert_v_child(temp_set.iter(), p);

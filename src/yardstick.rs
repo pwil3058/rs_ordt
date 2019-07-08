@@ -366,8 +366,8 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
                     rdt.include_excerpt(excerpt);
                 }
             }
-            // Collect needed to break borrow impasse
-            let keys: OrderedSet<T> = keys.map_difference(&self.children).collect();
+            // to_set() needed to break borrow impasse
+            let keys = (keys.iter() - self.children.keys()).to_set();
             for key in keys.iter() {
                 let grand_child = Self::new_trace(excerpt.clone());
                 self.children.insert(key.clone(), grand_child);
