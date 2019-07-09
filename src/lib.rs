@@ -202,11 +202,7 @@ impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
     }
 
     fn merged_children(&self) -> RefCell<OrderedMap<T, Rc<Self>>> {
-        let map = self
-            .children_r
-            .borrow()
-            .merge(&self.children_v.borrow())
-            .to_map();
+        let map = (self.children_r.borrow().iter() | self.children_v.borrow().iter()).to_map();
         RefCell::new(map)
     }
 
@@ -515,11 +511,8 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
         if self.is_trace() {
             big_s.insert(Rc::clone(self));
         }
-        for (j, j_mop) in self
-            .children_r
-            .borrow()
-            .merge(&self.children_v.borrow())
-            .skip_past_key(k)
+        for (j, j_mop) in
+            (self.children_r.borrow().iter() | self.children_v.borrow().iter()).skip_past_key(k)
         {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
@@ -533,11 +526,8 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
         if self.is_epitome() {
             big_s.insert(Rc::clone(self));
         }
-        for (j, j_mop) in self
-            .children_r
-            .borrow()
-            .merge(&self.children_v.borrow())
-            .skip_past_key(k)
+        for (j, j_mop) in
+            (self.children_r.borrow().iter() | self.children_v.borrow().iter()).skip_past_key(k)
         {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b10_mod_epitomes_after(j);
@@ -558,7 +548,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Public<T, S> for Rc<Mop<T, S>> {
         if self.is_trace() {
             big_s.insert(Rc::clone(self));
         }
-        for (j, j_mop) in self.children_r.borrow().merge(&self.children_v.borrow()) {
+        for (j, j_mop) in self.children_r.borrow().iter() | self.children_v.borrow().iter() {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
             }
@@ -571,7 +561,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Public<T, S> for Rc<Mop<T, S>> {
         if self.is_epitome() {
             big_s.insert(Rc::clone(self));
         }
-        for (j, j_mop) in self.children_r.borrow().merge(&self.children_v.borrow()) {
+        for (j, j_mop) in self.children_r.borrow().iter() | self.children_v.borrow().iter() {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b10_mod_epitomes_after(j);
             }
