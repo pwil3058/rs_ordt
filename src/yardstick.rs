@@ -233,7 +233,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
                 matches.insert(self);
             }
         } else {
-            for j in query.iter().skip_past(k) {
+            for j in query.iter().advance_past(k) {
                 if let Some(rdt) = self.children.get(j) {
                     if let Some(first) = (&(rdt.elements() - self.elements()) & query).first() {
                         if first == j {
@@ -254,7 +254,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         if self.is_trace() {
             matches.insert(self);
         }
-        for (j, rdt) in self.children.iter().skip_past_key(k) {
+        for (j, rdt) in self.children.iter().advance_past_key(k) {
             if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
                     for m in rdt.traces_after(j).drain() {
@@ -272,7 +272,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         if self.is_epitome() {
             matches.insert(self);
         }
-        for (j, rdt) in self.children.iter().skip_past_key(k) {
+        for (j, rdt) in self.children.iter().advance_past_key(k) {
             if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
                     for m in rdt.traces_after(j).drain() {

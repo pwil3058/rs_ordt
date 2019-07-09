@@ -479,7 +479,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                 big_s.insert(Rc::clone(self));
             }
         } else {
-            for j in query.difference(self.elements()).skip_past(k) {
+            for j in query.difference(self.elements()).advance_past(k) {
                 if let Some(j_mop) = self.get_r_child(j) {
                     if j == j_mop
                         .elements()
@@ -512,7 +512,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
             big_s.insert(Rc::clone(self));
         }
         for (j, j_mop) in
-            (self.children_r.borrow().iter() | self.children_v.borrow().iter()).skip_past_key(k)
+            (self.children_r.borrow().iter() | self.children_v.borrow().iter()).advance_past_key(k)
         {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
@@ -527,7 +527,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
             big_s.insert(Rc::clone(self));
         }
         for (j, j_mop) in
-            (self.children_r.borrow().iter() | self.children_v.borrow().iter()).skip_past_key(k)
+            (self.children_r.borrow().iter() | self.children_v.borrow().iter()).advance_past_key(k)
         {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
                 big_s = big_s | j_mop.algorithm_b10_mod_epitomes_after(j);
