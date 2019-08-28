@@ -128,7 +128,7 @@ where
     // Algorithm 3.3
     fn partial_matches_rv(&self, query: &OrderedSet<T>) -> OrderedSet<&Self> {
         let mut matches = OrderedSet::new();
-        if query.is_map_disjoint(&self.children) {
+        if query.iter().is_disjoint(self.children.keys()) {
             if !self.elements().is_disjoint(query) {
                 matches.insert(self);
             }
@@ -147,7 +147,7 @@ where
     // Algorithm 3.4
     fn partial_matches(&self, query: &OrderedSet<T>) -> OrderedSet<&Self> {
         let mut matches = OrderedSet::new();
-        if query.is_map_disjoint(&self.children) {
+        if query.iter().is_disjoint(self.children.keys()) {
             if !self.elements().is_disjoint(query) {
                 matches.insert(self);
             }
@@ -228,7 +228,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
     // Algorithm 3.5
     fn partial_matches_after(&self, query: &OrderedSet<T>, k: &T) -> OrderedSet<&Self> {
         let mut matches = OrderedSet::new();
-        if query.is_map_disjoint(&self.children) {
+        if query.iter().is_disjoint(self.children.keys()) {
             if !self.elements.is_disjoint(query) {
                 matches.insert(self);
             }
