@@ -11,9 +11,9 @@ use ordered_collections::{
     OrderedMap, OrderedSet,
 };
 
+pub mod strength;
 #[cfg(test)]
 mod yardstick;
-//pub mod ordt_alt;
 
 pub trait Strength: Clone {
     fn new(incr_value: bool) -> Self;
