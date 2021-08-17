@@ -15,21 +15,16 @@ pub mod strength;
 #[cfg(test)]
 mod yardstick;
 
-pub trait Strength: Clone {
-    fn new(incr_value: bool) -> Self;
-    fn value(&self) -> f64;
-    fn increase(&self);
-    fn decrease(&self);
-}
+use crate::strength::Strength;
 
 #[derive(Clone, Debug)]
 pub struct Mop<T: Ord + Debug + Clone, S: Strength> {
     elements: OrderedSet<T>,
     children_r: RefCell<OrderedMap<T, Rc<Self>>>,
     children_v: RefCell<OrderedMap<T, Rc<Self>>>,
-    trace_strength: S,
-    epitome_strength: S,
-    undif_strength: S,
+    trace_strength: Cell<S>,
+    epitome_strength: Cell<S>,
+    undif_strength: Cell<S>,
 }
 
 impl<T: Ord + Debug + Clone, S: Strength> PartialEq for Mop<T, S> {
@@ -58,15 +53,45 @@ impl<T: Ord + Clone + Debug, S: Strength> Mop<T, S> {
     }
 
     pub fn trace_strength(&self) -> f64 {
-        self.trace_strength.value()
+        self.trace_strength.get().value()
+    }
+
+    fn incr_trace_strength(&self) {
+        self.trace_strength
+            .set(self.trace_strength.get().incremented());
+    }
+
+    fn decr_trace_strength(&self) {
+        self.trace_strength
+            .set(self.trace_strength.get().decremented());
     }
 
     pub fn epitome_strength(&self) -> f64 {
-        self.epitome_strength.value()
+        self.epitome_strength.get().value()
+    }
+
+    fn incr_epitome_strength(&self) {
+        self.epitome_strength
+            .set(self.epitome_strength.get().incremented());
+    }
+
+    fn decr_epitome_strength(&self) {
+        self.epitome_strength
+            .set(self.epitome_strength.get().decremented());
+    }
+
+    fn incr_undif_strength(&self) {
+        self.undif_strength
+            .set(self.undif_strength.get().incremented());
+    }
+
+    fn decr_undif_strength(&self) {
+        self.undif_strength
+            .set(self.undif_strength.get().decremented());
     }
 
     pub fn is_trace(&self) -> bool {
-        self.trace_strength.value() > 0.0
+        self.trace_strength() > 0.0
     }
 
     pub fn is_epitome(&self) -> bool {
@@ -81,9 +106,9 @@ impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
             elements: OrderedSet::<T>::new(),
             children_r: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
             children_v: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
-            trace_strength: S::new(false),
-            epitome_strength: S::new(false),
-            undif_strength: S::new(false),
+            trace_strength: Cell::new(S::new(false)),
+            epitome_strength: Cell::new(S::new(false)),
+            undif_strength: Cell::new(S::new(false)),
         })
     }
 
@@ -92,9 +117,9 @@ impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
             elements: elements,
             children_r: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
             children_v: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
-            trace_strength: S::new(true),
-            epitome_strength: S::new(false),
-            undif_strength: S::new(true),
+            trace_strength: Cell::new(S::new(true)),
+            epitome_strength: Cell::new(S::new(false)),
+            undif_strength: Cell::new(S::new(true)),
         })
     }
 
@@ -107,9 +132,9 @@ impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
             elements: elements,
             children_r: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
             children_v: children_v,
-            trace_strength: S::new(false),
-            epitome_strength: undif_strength.clone(),
-            undif_strength: undif_strength.clone(),
+            trace_strength: Cell::new(S::new(false)),
+            epitome_strength: Cell::new(undif_strength.clone()),
+            undif_strength: Cell::new(undif_strength.clone()),
         })
     }
 
@@ -233,7 +258,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
         let m = Self::new_epitome(
             j_mop.elements.intersection(excerpt).to_set(),
             j_mop.merged_children(),
-            &j_mop.undif_strength,
+            &j_mop.undif_strength.get(),
         );
         m.insert_r_child(j_mop.elements.difference(&m.elements), &j_mop);
         self.insert_r_child(j_mop_indices.iter(), &m);
@@ -244,7 +269,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
         let m = Self::new_epitome(
             j_mop.elements.intersection(excerpt).to_set(),
             j_mop.merged_children(),
-            &j_mop.undif_strength,
+            &j_mop.undif_strength.get(),
         );
         m.insert_v_child(j_mop.elements.difference(&m.elements), &j_mop);
         self.insert_r_child(excerpt.intersection(&j_mop_indices), &m);
@@ -285,7 +310,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
         let m = Self::new_epitome(
             j_mop_v.elements.intersection(excerpt).to_set(),
             j_mop_v.merged_children(),
-            &j_mop_v.undif_strength,
+            &j_mop_v.undif_strength.get(),
         );
         m.insert_v_child(j_mop_v.elements.difference(&m.elements), &j_mop_v);
         self.insert_r_child(excerpt.intersection(&j_mop_v_indices), &m);
@@ -358,9 +383,9 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
     }
 
     fn algorithm_6_12_decr_strengths(&self) {
-        self.trace_strength.decrease();
-        self.epitome_strength.decrease();
-        self.undif_strength.decrease();
+        self.decr_trace_strength();
+        self.decr_epitome_strength();
+        self.decr_undif_strength();
         let mut big_a = self.children_r.borrow().keys().to_set();
         while let Some(j) = big_a.first() {
             let (child, indices) = self.get_r_child_and_indices(j).unwrap();
@@ -392,7 +417,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
         let big_x_u = excerpt - &self.elements;
         if big_x_u.len() == 0 {
             *new_trace = Some(Rc::clone(self));
-            self.trace_strength.increase();
+            self.incr_trace_strength();
         } else {
             let mut big_a = (big_x_u.iter() & self.children_r.borrow().keys()).to_set();
             while let Some(j) = big_a.first() {
@@ -412,9 +437,9 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                     *new_trace = Some(p);
                 }
             }
-            self.epitome_strength.increase();
+            self.incr_epitome_strength();
         }
-        self.undif_strength.increase();
+        self.incr_undif_strength();
     }
 
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>> {
@@ -622,37 +647,37 @@ impl<T: Ord + Debug + Clone, S: Strength> RedundantDiscriminationTree<T, S> {
 }
 
 // SIMPLE STRENGTH
-
-#[derive(Debug, Clone)]
-pub struct SimpleStrength {
-    value: Cell<f64>,
-}
-
-impl Strength for SimpleStrength {
-    fn new(incr_value: bool) -> Self {
-        let strength = Self {
-            value: Cell::new(0.0),
-        };
-        if incr_value {
-            strength.increase();
-        }
-        strength
-    }
-
-    fn value(&self) -> f64 {
-        self.value.get()
-    }
-
-    fn increase(&self) {
-        let old_value = self.value.get();
-        self.value.set(old_value + (1.0 - old_value) * 0.05);
-    }
-
-    fn decrease(&self) {
-        let old_value = self.value.get();
-        self.value.set(old_value * (1.0 - 0.05));
-    }
-}
+//
+// #[derive(Debug, Clone)]
+// pub struct SimpleStrength {
+//     value: Cell<f64>,
+// }
+//
+// impl Strength for SimpleStrength {
+//     fn new(incr_value: bool) -> Self {
+//         let strength = Self {
+//             value: Cell::new(0.0),
+//         };
+//         if incr_value {
+//             strength.increase();
+//         }
+//         strength
+//     }
+//
+//     fn value(&self) -> f64 {
+//         self.value.get()
+//     }
+//
+//     fn increase(&self) {
+//         let old_value = self.value.get();
+//         self.value.set(old_value + (1.0 - old_value) * 0.05);
+//     }
+//
+//     fn decrease(&self) {
+//         let old_value = self.value.get();
+//         self.value.set(old_value * (1.0 - 0.05));
+//     }
+// }
 
 // Debug Helpers
 fn format_set<T: Ord + Debug>(set: &OrderedSet<T>) -> String {
@@ -743,6 +768,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::strength::*;
 
     #[test]
     fn it_works() {
