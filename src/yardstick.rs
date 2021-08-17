@@ -135,7 +135,7 @@ where
         } else {
             for j in query.iter() {
                 if let Some(rdt) = self.children.get(j) {
-                    for m in rdt.partial_matches_rv(query).drain() {
+                    for m in rdt.partial_matches_rv(query).iter() {
                         matches.insert(m);
                     }
                 }
@@ -156,7 +156,7 @@ where
                 if let Some(rdt) = self.children.get(j) {
                     if let Some(first) = (&(rdt.elements() - self.elements()) & query).first() {
                         if first == j {
-                            for m in rdt.partial_matches_after(query, j).drain() {
+                            for m in rdt.partial_matches_after(query, j).iter() {
                                 matches.insert(m);
                             }
                         }
@@ -176,7 +176,7 @@ where
         for (j, rdt) in self.children.iter() {
             if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
-                    for m in rdt.traces_after(j).drain() {
+                    for m in rdt.traces_after(j).iter() {
                         matches.insert(m);
                     }
                 }
@@ -194,7 +194,7 @@ where
         for (j, rdt) in self.children.iter() {
             if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
-                    for m in rdt.epitomes_after(j).drain() {
+                    for m in rdt.epitomes_after(j).iter() {
                         matches.insert(m);
                     }
                 }
@@ -237,7 +237,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
                 if let Some(rdt) = self.children.get(j) {
                     if let Some(first) = (&(rdt.elements() - self.elements()) & query).first() {
                         if first == j {
-                            for m in rdt.partial_matches_after(query, j).drain() {
+                            for m in rdt.partial_matches_after(query, j).iter() {
                                 matches.insert(m);
                             }
                         }
@@ -257,7 +257,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         for (j, rdt) in self.children.iter().advance_past_key(k) {
             if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
-                    for m in rdt.traces_after(j).drain() {
+                    for m in rdt.traces_after(j).iter() {
                         matches.insert(m);
                     }
                 }
@@ -275,7 +275,7 @@ impl<T: Ord + Clone + Hash, S: Strength> Mop<T, S> {
         for (j, rdt) in self.children.iter().advance_past_key(k) {
             if let Some(first) = (rdt.elements() - self.elements()).first() {
                 if first == j {
-                    for m in rdt.traces_after(j).drain() {
+                    for m in rdt.traces_after(j).iter() {
                         matches.insert(m);
                     }
                 }
