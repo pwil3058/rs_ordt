@@ -2,7 +2,7 @@
 name = "ordt"
 version = "0.1.0"
 authors = ["Peter Williams <pwil3058@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 # TODO: change ordered_collections dependency when it goes public
