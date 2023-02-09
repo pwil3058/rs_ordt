@@ -222,8 +222,8 @@ impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
     }
 
     fn is_disjoint_child_indices(&self, set: &OrderedSet<T>) -> bool {
-        self.children_r.borrow().keys().is_disjoint(set.iter())
-            && self.children_v.borrow().keys().is_disjoint(set.iter())
+        self.children_r.borrow().keys().is_disjoint(&set.iter())
+            && self.children_v.borrow().keys().is_disjoint(&set.iter())
     }
 
     fn merged_children(&self) -> RefCell<OrderedMap<T, Rc<Self>>> {
@@ -680,7 +680,7 @@ impl<T: Ord + Debug + Clone, S: Strength> RedundantDiscriminationTree<T, S> {
 // }
 
 // Debug Helpers
-fn format_set<T: Ord + Debug>(set: &OrderedSet<T>) -> String {
+fn format_set<T: Ord + Debug + Clone>(set: &OrderedSet<T>) -> String {
     let v: Vec<&T> = set.iter().collect();
     format!("{:?}", v)
 }
