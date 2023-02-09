@@ -27,6 +27,19 @@ pub struct Mop<T: Ord + Debug + Clone, S: Strength> {
     undif_strength: Cell<S>,
 }
 
+impl<T: Ord + Debug + Clone, S: Strength> Default for Mop<T, S> {
+    fn default() -> Self {
+        Self {
+            elements: OrderedSet::<T>::default(),
+            children_r: RefCell::new(OrderedMap::<T, Rc<Self>>::default()),
+            children_v: RefCell::new(OrderedMap::<T, Rc<Self>>::default()),
+            trace_strength: Cell::new(S::default()),
+            epitome_strength: Cell::new(S::default()),
+            undif_strength: Cell::new(S::default()),
+        }
+    }
+}
+
 impl<T: Ord + Debug + Clone, S: Strength> PartialEq for Mop<T, S> {
     fn eq(&self, other: &Self) -> bool {
         self.elements == other.elements
@@ -102,19 +115,12 @@ impl<T: Ord + Clone + Debug, S: Strength> Mop<T, S> {
 // Support Methods
 impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
     fn tabula_rasa() -> Rc<Self> {
-        Rc::new(Self {
-            elements: OrderedSet::<T>::new(),
-            children_r: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
-            children_v: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
-            trace_strength: Cell::new(S::new(false)),
-            epitome_strength: Cell::new(S::new(false)),
-            undif_strength: Cell::new(S::new(false)),
-        })
+        Rc::new(Self::default())
     }
 
     fn new_trace(elements: OrderedSet<T>) -> Rc<Self> {
         Rc::new(Self {
-            elements: elements,
+            elements,
             children_r: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
             children_v: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
             trace_strength: Cell::new(S::new(true)),
@@ -129,12 +135,12 @@ impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
         undif_strength: &S,
     ) -> Rc<Self> {
         Rc::new(Self {
-            elements: elements,
+            elements,
             children_r: RefCell::new(OrderedMap::<T, Rc<Self>>::new()),
-            children_v: children_v,
+            children_v,
             trace_strength: Cell::new(S::new(false)),
-            epitome_strength: Cell::new(undif_strength.clone()),
-            undif_strength: Cell::new(undif_strength.clone()),
+            epitome_strength: Cell::new(*undif_strength),
+            undif_strength: Cell::new(*undif_strength),
         })
     }
 
@@ -161,11 +167,7 @@ impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
 
     fn get_r_child(&self, key: &T) -> Option<Rc<Self>> {
         let my_children = self.children_r.borrow();
-        if let Some(child) = my_children.get(key) {
-            Some(Rc::clone(child))
-        } else {
-            None
-        }
+        my_children.get(key).map(Rc::clone)
     }
 
     // See Algorithm 6.5
@@ -192,11 +194,7 @@ impl<'a, T: 'a + Ord + Debug + Clone, S: Strength> Mop<T, S> {
 
     fn get_v_child(&self, key: &T) -> Option<Rc<Self>> {
         let my_children = self.children_v.borrow();
-        if let Some(child) = my_children.get(key) {
-            Some(Rc::clone(child))
-        } else {
-            None
-        }
+        my_children.get(key).map(Rc::clone)
     }
 
     // See Algorithm 6.8
@@ -301,7 +299,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
                 j_mop.algorithm_6_4_reorganize(excerpt, base_mop, big_u);
             }
 
-            big_a = big_a - big_i_to;
+            big_a -= big_i_to;
         }
     }
 
@@ -327,21 +325,21 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
         while let Some(j) = big_a_v.first() {
             let (j_mop_v, j_mop_v_indices) = self.get_v_child_and_indices(j).unwrap();
             if excerpt.is_superset(&j_mop_v.elements) {
-                big_a_v = big_a_v - j_mop_v_indices;
+                big_a_v -= j_mop_v_indices;
             } else {
                 self.algorithm_6_6_interpose(j, excerpt);
                 let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
                 j_mop.algorithm_6_9_fix_v_links(big_u);
                 base_mop.algorithm_6_10_fix_v_links(&(Rc::clone(&j_mop_v), Rc::clone(&j_mop)));
                 big_u.insert((Rc::clone(&j_mop_v), Rc::clone(&j_mop)));
-                big_a_v = big_a_v - j_mop_indices;
+                big_a_v -= j_mop_indices;
             }
         }
         let mut big_a = (excerpt.iter() & self.children_r.borrow().keys()).to_set();
         while let Some(j) = big_a.first() {
             let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
             j_mop.algorithm_6_7_reorganize(excerpt, base_mop, big_u);
-            big_a = big_a - j_mop_indices;
+            big_a -= j_mop_indices;
         }
     }
 
@@ -377,7 +375,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
             while let Some(j) = big_a.first() {
                 let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
                 j_mop.algorithm_6_10_fix_v_links(mops);
-                big_a = big_a - j_mop_indices;
+                big_a -= j_mop_indices;
             }
         }
     }
@@ -390,7 +388,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
         while let Some(j) = big_a.first() {
             let (child, indices) = self.get_r_child_and_indices(j).unwrap();
             child.algorithm_6_12_decr_strengths();
-            big_a = big_a - indices;
+            big_a -= indices;
         }
     }
 }
@@ -415,7 +413,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
         new_trace: &mut Option<Rc<Mop<T, S>>>,
     ) {
         let big_x_u = excerpt - &self.elements;
-        if big_x_u.len() == 0 {
+        if big_x_u.is_empty() {
             *new_trace = Some(Rc::clone(self));
             self.incr_trace_strength();
         } else {
@@ -423,12 +421,12 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
             while let Some(j) = big_a.first() {
                 let (j_mop, j_mop_indices) = self.get_r_child_and_indices(j).unwrap();
                 j_mop.algorithm_6_11_absorb(excerpt, new_trace);
-                big_a = big_a - j_mop_indices;
+                big_a -= j_mop_indices;
             }
             let temp_set = ((big_x_u.iter() - self.children_r.borrow().keys())
                 - self.children_v.borrow().keys())
             .to_set();
-            if temp_set.len() > 0 {
+            if !temp_set.is_empty() {
                 if let Some(p) = new_trace {
                     self.insert_v_child(temp_set.iter(), p);
                 } else {
@@ -475,7 +473,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                         .next()
                         .unwrap()
                     {
-                        big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
+                        big_s |= j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
                 } else if let Some(j_mop) = self.get_v_child(j) {
                     if j == j_mop
@@ -485,7 +483,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                         .next()
                         .unwrap()
                     {
-                        big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
+                        big_s |= j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
                 }
             }
@@ -513,7 +511,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                         .next()
                         .unwrap()
                     {
-                        big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
+                        big_s |= j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
                 } else if let Some(j_mop) = self.get_v_child(j) {
                     if j == j_mop
@@ -523,7 +521,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                         .next()
                         .unwrap()
                     {
-                        big_s = big_s | j_mop.algorithm_6_15_patrial_match_after(query, j);
+                        big_s |= j_mop.algorithm_6_15_patrial_match_after(query, j);
                     }
                 }
             }
@@ -540,7 +538,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
             (self.children_r.borrow().iter() | self.children_v.borrow().iter()).advance_past_key(k)
         {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
-                big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
+                big_s |= j_mop.algorithm_b8_mod_traces_after(j);
             }
         }
         big_s
@@ -555,7 +553,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
             (self.children_r.borrow().iter() | self.children_v.borrow().iter()).advance_past_key(k)
         {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
-                big_s = big_s | j_mop.algorithm_b10_mod_epitomes_after(j);
+                big_s |= j_mop.algorithm_b10_mod_epitomes_after(j);
             }
         }
         big_s
@@ -575,7 +573,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Public<T, S> for Rc<Mop<T, S>> {
         }
         for (j, j_mop) in self.children_r.borrow().iter() | self.children_v.borrow().iter() {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
-                big_s = big_s | j_mop.algorithm_b8_mod_traces_after(j);
+                big_s |= j_mop.algorithm_b8_mod_traces_after(j);
             }
         }
         big_s
@@ -588,14 +586,14 @@ impl<T: Ord + Debug + Clone, S: Strength> Public<T, S> for Rc<Mop<T, S>> {
         }
         for (j, j_mop) in self.children_r.borrow().iter() | self.children_v.borrow().iter() {
             if j == j_mop.elements().difference(self.elements()).next().unwrap() {
-                big_s = big_s | j_mop.algorithm_b10_mod_epitomes_after(j);
+                big_s |= j_mop.algorithm_b10_mod_epitomes_after(j);
             }
         }
         big_s
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct RedundantDiscriminationTree<T: Ord + Debug + Clone, S: Strength> {
     mop: Rc<Mop<T, S>>,
 }
@@ -630,7 +628,7 @@ impl<T: Ord + Debug + Clone, S: Strength> RedundantDiscriminationTree<T, S> {
     }
 
     pub fn complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>> {
-        self.mop.algorithm_6_13_complete_match(&query)
+        self.mop.algorithm_6_13_complete_match(query)
     }
 
     pub fn partial_matches(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>> {
@@ -682,7 +680,7 @@ impl<T: Ord + Debug + Clone, S: Strength> RedundantDiscriminationTree<T, S> {
 // Debug Helpers
 fn format_set<T: Ord + Debug + Clone>(set: &OrderedSet<T>) -> String {
     let v: Vec<&T> = set.iter().collect();
-    format!("{:?}", v)
+    format!("{v:?}")
 }
 
 impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
@@ -692,7 +690,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
         let big_i_r: Vec<&T> = childen_r.keys().collect();
         let childen_v = self.children_v.borrow();
         let big_i_v: Vec<&T> = childen_v.keys().collect();
-        format!("C: {:?} I_r: {:?} I_v: {:?}", big_c, big_i_r, big_i_v)
+        format!("C: {big_c:?} I_r: {big_i_r:?} I_v: {big_i_v:?}")
     }
 
     fn format_mop(&self) -> String {
@@ -709,7 +707,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
                 j_mop.format_mop_short()
             );
             fstr.push_str(&tstr);
-            big_a = big_a - j_mop_indices;
+            big_a -= j_mop_indices;
         }
         let mut big_a = self.children_v.borrow().keys().to_set();
         while let Some(j) = big_a.first() {
@@ -720,9 +718,9 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
                 j_mop.format_mop_short()
             );
             fstr.push_str(&tstr);
-            big_a = big_a - j_mop_indices;
+            big_a -= j_mop_indices;
         }
-        fstr.push_str("}");
+        fstr.push('}');
         fstr
     }
 
