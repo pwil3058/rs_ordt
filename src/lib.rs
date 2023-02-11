@@ -396,8 +396,8 @@ impl<T: Ord + Debug + Clone, S: Strength> Mop<T, S> {
 trait Engine<T: Ord + Debug + Clone, S: Strength> {
     fn algorithm_6_11_absorb(&self, excerpt: &OrderedSet<T>, new_trace: &mut Option<Rc<Mop<T, S>>>);
     fn algorithm_6_13_complete_match(&self, query: &OrderedSet<T>) -> Option<Rc<Mop<T, S>>>;
-    fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>>;
-    fn algorithm_6_15_patrial_match_after(
+    fn algorithm_6_14_partial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>>;
+    fn algorithm_6_15_partial_match_after(
         &self,
         query: &OrderedSet<T>,
         k: &T,
@@ -457,7 +457,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
         Some(p)
     }
 
-    fn algorithm_6_14_patrial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>> {
+    fn algorithm_6_14_partial_match(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>> {
         let mut big_s = OrderedSet::default();
         if self.is_disjoint_child_indices(query) {
             if !query.is_disjoint(self.elements()) {
@@ -473,7 +473,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                         .next()
                         .unwrap()
                     {
-                        big_s |= j_mop.algorithm_6_15_patrial_match_after(query, j);
+                        big_s |= j_mop.algorithm_6_15_partial_match_after(query, j);
                     }
                 } else if let Some(j_mop) = self.get_v_child(j) {
                     if j == j_mop
@@ -483,7 +483,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                         .next()
                         .unwrap()
                     {
-                        big_s |= j_mop.algorithm_6_15_patrial_match_after(query, j);
+                        big_s |= j_mop.algorithm_6_15_partial_match_after(query, j);
                     }
                 }
             }
@@ -491,7 +491,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
         big_s
     }
 
-    fn algorithm_6_15_patrial_match_after(
+    fn algorithm_6_15_partial_match_after(
         &self,
         query: &OrderedSet<T>,
         k: &T,
@@ -511,7 +511,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                         .next()
                         .unwrap()
                     {
-                        big_s |= j_mop.algorithm_6_15_patrial_match_after(query, j);
+                        big_s |= j_mop.algorithm_6_15_partial_match_after(query, j);
                     }
                 } else if let Some(j_mop) = self.get_v_child(j) {
                     if j == j_mop
@@ -521,7 +521,7 @@ impl<T: Ord + Debug + Clone, S: Strength> Engine<T, S> for Rc<Mop<T, S>> {
                         .next()
                         .unwrap()
                     {
-                        big_s |= j_mop.algorithm_6_15_patrial_match_after(query, j);
+                        big_s |= j_mop.algorithm_6_15_partial_match_after(query, j);
                     }
                 }
             }
@@ -632,7 +632,7 @@ impl<T: Ord + Debug + Clone, S: Strength> RedundantDiscriminationTree<T, S> {
     }
 
     pub fn partial_matches(&self, query: &OrderedSet<T>) -> OrderedSet<Rc<Mop<T, S>>> {
-        self.mop.algorithm_6_14_patrial_match(query)
+        self.mop.algorithm_6_14_partial_match(query)
     }
 
     pub fn traces(&self) -> OrderedSet<Rc<Mop<T, S>>> {
